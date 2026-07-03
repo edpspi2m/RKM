@@ -1,13 +1,13 @@
 class ApiConstant {
-  ApiConstant._();
+  // Base URL API Production
+  static const String baseUrl = "https://api.isreport.my.id/absen";
 
-  static const String baseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'https://api.rkm-internal.co.id/v1',
-  );
+  // Endpoints
+  static const String login = "$baseUrl/login.php";
+  static const String timestamp = "$baseUrl/timestamp.php";
+  static const String rkm = "$baseUrl/rkm.php";
 
-  static const String login = '/auth/login';
-  static const String submitKunjungan = '/kunjungan/submit';
-
-  static const Duration timeout = Duration(seconds: 15);
+  // Timeout settings
+  static const int connectTimeout = 15000; // 15 detik
+  static const int receiveTimeout = 15000;
 }
