@@ -13,7 +13,6 @@ class UserModel {
     this.token = '',
   });
 
-  // Alias untuk kompatibilitas jika ada kode lama yang masih memanggil field ini
   String get email => username;
   String get jabatan => role;
 
