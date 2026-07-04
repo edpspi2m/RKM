@@ -11,6 +11,7 @@ class AppColors {
   static const Color actionLight = Color(0xFF60AD5E);
   static const Color error = Color(0xFFC62828);
   static const Color warning = Color(0xFFEF6C00);
+  static const Color promo = Color(0xFFE65100);
   static const Color textPrimary = Color(0xFF1A1A1A);
   static const Color textSecondary = Color(0xFF6B7280);
   static const Color divider = Color(0xFFE5E7EB);
