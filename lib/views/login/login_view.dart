@@ -90,7 +90,6 @@ class _LoginViewState extends State<LoginView> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Logo card - kotak rounded, bukan lingkaran penuh
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -137,8 +136,6 @@ class _LoginViewState extends State<LoginView> {
                     ),
                   ),
                   const SizedBox(height: 40),
-
-                  // Username field
                   TextFormField(
                     controller: _usernameController,
                     keyboardType: TextInputType.text,
@@ -155,8 +152,6 @@ class _LoginViewState extends State<LoginView> {
                     },
                   ),
                   const SizedBox(height: 16),
-
-                  // Password field
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
@@ -183,8 +178,6 @@ class _LoginViewState extends State<LoginView> {
                     },
                   ),
                   const SizedBox(height: 28),
-
-                  // Login button
                   SizedBox(
                     height: 52,
                     child: AppButton(
@@ -193,7 +186,6 @@ class _LoginViewState extends State<LoginView> {
                       onPressed: () => _handleLogin(authProvider),
                     ),
                   ),
-
                   if (authProvider.state == AuthState.securityBlocked) ...[
                     const SizedBox(height: 20),
                     SecurityBlockerView(
