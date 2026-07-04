@@ -10,10 +10,8 @@ class AuthProvider extends ChangeNotifier {
   final AuthRepository _authRepository;
   final ApiClient _apiClient;
 
-  AuthProvider({
-    required AuthRepository authRepository,
-    required ApiClient apiClient,
-  })  : _authRepository = authRepository,
+  AuthProvider({required AuthRepository authRepository, required ApiClient apiClient})
+      : _authRepository = authRepository,
         _apiClient = apiClient;
 
   AuthState _state = AuthState.idle;
@@ -30,7 +28,6 @@ class AuthProvider extends ChangeNotifier {
   Future<void> tryAutoLogin() async {
     _isCheckingSession = true;
     notifyListeners();
-
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token');
@@ -38,21 +35,14 @@ class AuthProvider extends ChangeNotifier {
       final username = prefs.getString('username');
       final nama = prefs.getString('nama');
       final role = prefs.getString('role');
-
       if (token != null && userId != null) {
         _apiClient.setToken(token);
-        _user = UserModel(
-          id: userId,
-          username: username ?? '',
-          nama: nama ?? '',
-          role: role ?? '',
-          token: token,
-        );
+        _user = UserModel(id: userId, username: username ?? '', nama: nama ?? '', role: role ?? '', token: token);
         _state = AuthState.success;
       } else {
         _state = AuthState.idle;
       }
-    } catch (e) {
+    } catch (_) {
       _state = AuthState.idle;
     } finally {
       _isCheckingSession = false;
@@ -64,7 +54,6 @@ class AuthProvider extends ChangeNotifier {
     _state = AuthState.loading;
     _errorMessage = null;
     notifyListeners();
-
     try {
       final user = await _authRepository.login(email: username, password: password);
       _user = user;
