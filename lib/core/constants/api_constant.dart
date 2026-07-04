@@ -3,11 +3,10 @@ class ApiConstant {
   static const String baseUrl = "https://api.isreport.my.id/absen";
 
   // Endpoints
-  static const String login = "$baseUrl/login.php";
-  static const String timestamp = "$baseUrl/timestamp.php";
-  static const String rkm = "$baseUrl/rkm.php";
+  static const String login = "/login.php";
+  static const String timestamp = "/timestamp.php";
+  static const String submitKunjungan = "/rkm.php";
 
-  // Timeout settings
-  static const int connectTimeout = 15000; // 15 detik
-  static const int receiveTimeout = 15000;
+  // Timeout
+  static const Duration timeout = Duration(seconds: 15);
 }
