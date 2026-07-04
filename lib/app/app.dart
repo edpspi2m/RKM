@@ -6,14 +6,18 @@ import '../core/network/api_client.dart';
 import '../data/services/auth_service.dart';
 import '../data/services/kunjungan_service.dart';
 import '../data/services/promo_service.dart';
+import '../data/services/member_service.dart';
+import '../data/services/riwayat_service.dart';
 import '../data/repositories/auth_repository.dart';
 import '../data/repositories/kunjungan_repository.dart';
 import '../providers/auth_provider.dart';
 import '../providers/location_provider.dart';
 import '../providers/kunjungan_provider.dart';
 import '../providers/promo_provider.dart';
+import '../providers/member_provider.dart';
+import '../providers/riwayat_provider.dart';
 import '../views/login/login_view.dart';
-import '../views/home/home_view.dart';
+import '../views/main_navigation_view.dart';
 
 class RkmApp extends StatelessWidget {
   const RkmApp({super.key});
@@ -24,6 +28,8 @@ class RkmApp extends StatelessWidget {
     final authService = AuthService(apiClient);
     final kunjunganService = KunjunganService(apiClient);
     final promoService = PromoService(apiClient);
+    final memberService = MemberService(apiClient);
+    final riwayatService = RiwayatService(apiClient);
 
     return MultiProvider(
       providers: [
@@ -41,6 +47,8 @@ class RkmApp extends StatelessWidget {
           ),
         ),
         ChangeNotifierProvider(create: (_) => PromoProvider(promoService)),
+        ChangeNotifierProvider(create: (_) => MemberProvider(memberService)),
+        ChangeNotifierProvider(create: (_) => RiwayatProvider(riwayatService)),
       ],
       child: MaterialApp(
         title: 'RKM App',
@@ -52,8 +60,6 @@ class RkmApp extends StatelessWidget {
   }
 }
 
-/// Menentukan halaman awal: cek dulu apakah ada sesi login tersimpan.
-/// Jika ada & valid, langsung ke HomeView tanpa perlu login ulang.
 class _StartupGate extends StatelessWidget {
   const _StartupGate();
 
@@ -62,13 +68,11 @@ class _StartupGate extends StatelessWidget {
     final authProvider = context.watch<AuthProvider>();
 
     if (authProvider.isCheckingSession) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (authProvider.isAuthenticated) {
-      return const HomeView();
+      return const MainNavigationView();
     }
 
     return const LoginView();
