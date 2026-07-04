@@ -90,12 +90,12 @@ class _LoginViewState extends State<LoginView> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Logo card
+                  // Logo card - kotak rounded, bukan lingkaran penuh
                   Container(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: AppColors.surface,
-                      shape: BoxShape.circle,
+                      borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
                           color: AppColors.primary.withOpacity(0.08),
@@ -106,8 +106,8 @@ class _LoginViewState extends State<LoginView> {
                     ),
                     child: Image.asset(
                       'assets/images/logo.png',
-                      height: 64,
-                      width: 64,
+                      height: 72,
+                      width: 72,
                       fit: BoxFit.contain,
                       errorBuilder: (_, __, ___) => const Icon(
                         Icons.apartment_rounded,
