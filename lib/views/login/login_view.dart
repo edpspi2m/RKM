@@ -15,13 +15,13 @@ class LoginView extends StatefulWidget {
 
 class _LoginViewState extends State<LoginView> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
+  final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -30,7 +30,7 @@ class _LoginViewState extends State<LoginView> {
     if (!_formKey.currentState!.validate()) return;
 
     await authProvider.login(
-        _emailController.text.trim(), _passwordController.text);
+        _usernameController.text.trim(), _passwordController.text);
 
     if (!mounted) return;
 
@@ -108,6 +108,7 @@ class _LoginViewState extends State<LoginView> {
                       'assets/images/logo.png',
                       height: 64,
                       width: 64,
+                      fit: BoxFit.contain,
                       errorBuilder: (_, __, ___) => const Icon(
                         Icons.apartment_rounded,
                         size: 64,
@@ -137,21 +138,18 @@ class _LoginViewState extends State<LoginView> {
                   ),
                   const SizedBox(height: 40),
 
-                  // Email field
+                  // Username field
                   TextFormField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
+                    controller: _usernameController,
+                    keyboardType: TextInputType.text,
                     style: const TextStyle(color: AppColors.textPrimary),
                     decoration: _inputDecoration(
-                      label: 'Email',
-                      icon: Icons.email_outlined,
+                      label: 'Username',
+                      icon: Icons.person_outline,
                     ),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Email tidak boleh kosong';
-                      }
-                      if (!value.contains('@')) {
-                        return 'Format email tidak valid';
+                        return 'Username tidak boleh kosong';
                       }
                       return null;
                     },
