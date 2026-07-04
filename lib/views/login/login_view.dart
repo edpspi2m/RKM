@@ -28,12 +28,9 @@ class _LoginViewState extends State<LoginView> {
 
   Future<void> _handleLogin(AuthProvider authProvider) async {
     if (!_formKey.currentState!.validate()) return;
-
     await authProvider.login(
         _usernameController.text.trim(), _passwordController.text);
-
     if (!mounted) return;
-
     if (authProvider.state == AuthState.success) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const HomeView()),
@@ -53,8 +50,7 @@ class _LoginViewState extends State<LoginView> {
       suffixIcon: suffixIcon,
       filled: true,
       fillColor: AppColors.inputFill,
-      contentPadding:
-          const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide.none,
@@ -116,38 +112,25 @@ class _LoginViewState extends State<LoginView> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  const Text(
-                    'RKM',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primaryDark,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
+                  const Text('RKM',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primaryDark,
+                          letterSpacing: 0.5)),
                   const SizedBox(height: 4),
-                  const Text(
-                    'Rencana Kinerja Mingguan',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
+                  const Text('Rencana Kinerja Mingguan',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
                   const SizedBox(height: 40),
                   TextFormField(
                     controller: _usernameController,
                     keyboardType: TextInputType.text,
                     style: const TextStyle(color: AppColors.textPrimary),
-                    decoration: _inputDecoration(
-                      label: 'Username',
-                      icon: Icons.person_outline,
-                    ),
+                    decoration: _inputDecoration(label: 'Username', icon: Icons.person_outline),
                     validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Username tidak boleh kosong';
-                      }
+                      if (value == null || value.trim().isEmpty) return 'Username tidak boleh kosong';
                       return null;
                     },
                   ),
@@ -160,20 +143,13 @@ class _LoginViewState extends State<LoginView> {
                       label: 'Kata Sandi',
                       icon: Icons.lock_outline,
                       suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined,
-                          color: AppColors.textSecondary,
-                        ),
-                        onPressed: () => setState(
-                            () => _obscurePassword = !_obscurePassword),
+                        icon: Icon(_obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                            color: AppColors.textSecondary),
+                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                       ),
                     ),
                     validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Kata sandi tidak boleh kosong';
-                      }
+                      if (value == null || value.isEmpty) return 'Kata sandi tidak boleh kosong';
                       return null;
                     },
                   ),
@@ -189,15 +165,13 @@ class _LoginViewState extends State<LoginView> {
                   if (authProvider.state == AuthState.securityBlocked) ...[
                     const SizedBox(height: 20),
                     SecurityBlockerView(
-                      reason: authProvider.errorMessage ??
-                          'Keamanan perangkat tidak terverifikasi.',
+                      reason: authProvider.errorMessage ?? 'Keamanan perangkat tidak terverifikasi.',
                       onRetry: () => _handleLogin(authProvider),
                     ),
                   ] else if (authProvider.state == AuthState.error) ...[
                     const SizedBox(height: 16),
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 10, horizontal: 14),
+                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
                       decoration: BoxDecoration(
                         color: AppColors.error.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(10),
@@ -205,17 +179,11 @@ class _LoginViewState extends State<LoginView> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.error_outline,
-                              color: AppColors.error, size: 18),
+                          const Icon(Icons.error_outline, color: AppColors.error, size: 18),
                           const SizedBox(width: 8),
                           Flexible(
-                            child: Text(
-                              authProvider.errorMessage ?? 'Login gagal',
-                              style: const TextStyle(
-                                color: AppColors.error,
-                                fontSize: 13,
-                              ),
-                            ),
+                            child: Text(authProvider.errorMessage ?? 'Login gagal',
+                                style: const TextStyle(color: AppColors.error, fontSize: 13)),
                           ),
                         ],
                       ),
