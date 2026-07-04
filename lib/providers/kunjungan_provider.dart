@@ -1,4 +1,3 @@
-// Menggunakan import kondisional agar tidak crash di Web
 import 'dart:io' if (dart.library.html) 'dart:html' as io;
 import 'package:flutter/foundation.dart';
 import '../data/models/gps_location_model.dart';
@@ -6,7 +5,6 @@ import '../data/models/kunjungan_model.dart';
 import '../data/repositories/kunjungan_repository.dart';
 import '../data/services/whatsapp_share_service.dart';
 
-// AppFile digunakan sebagai tipe data fleksibel untuk File (Mobile) atau Blob (Web)
 typedef AppFile = dynamic;
 
 enum SubmitState { idle, processingPhoto, uploading, success, error }
@@ -63,7 +61,6 @@ class KunjunganProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Pengecekan path agar aman di Web maupun Mobile
       final String path =
           _fotoWatermark is io.File ? _fotoWatermark.path : 'web_image_path';
 
@@ -76,7 +73,12 @@ class KunjunganProvider extends ChangeNotifier {
 
       await _repository.kirimKunjungan(
           kunjungan: kunjungan, fotoWatermark: _fotoWatermark!);
+
       _state = SubmitState.success;
+      notifyListeners();
+
+      await bagikanKeWhatsapp(namaToko);
+
       return true;
     } catch (e) {
       _state = SubmitState.error;
