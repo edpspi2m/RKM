@@ -41,6 +41,39 @@ class _LoginViewState extends State<LoginView> {
     }
   }
 
+  InputDecoration _inputDecoration({
+    required String label,
+    required IconData icon,
+    Widget? suffixIcon,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: const TextStyle(color: AppColors.textSecondary),
+      prefixIcon: Icon(icon, color: AppColors.primary, size: 22),
+      suffixIcon: suffixIcon,
+      filled: true,
+      fillColor: AppColors.inputFill,
+      contentPadding:
+          const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.error, width: 1.2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
@@ -50,69 +83,119 @@ class _LoginViewState extends State<LoginView> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 28),
             child: Form(
               key: _formKey,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Image.asset(
-                    'assets/images/logo.png',
-                    height: 90,
-                    errorBuilder: (_, __, ___) => const Icon(Icons.business,
-                        size: 80, color: AppColors.primary),
+                  // Logo card
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withOpacity(0.08),
+                          blurRadius: 24,
+                          spreadRadius: 4,
+                        ),
+                      ],
+                    ),
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      height: 64,
+                      width: 64,
+                      errorBuilder: (_, __, ___) => const Icon(
+                        Icons.apartment_rounded,
+                        size: 64,
+                        color: AppColors.primary,
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
                   const Text(
-                    'RKM - Rencana Kinerja Mingguan',
+                    'RKM',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary),
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primaryDark,
+                      letterSpacing: 0.5,
+                    ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Rencana Kinerja Mingguan',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+
+                  // Email field
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                        labelText: 'Email',
-                        prefixIcon: Icon(Icons.email_outlined)),
+                    style: const TextStyle(color: AppColors.textPrimary),
+                    decoration: _inputDecoration(
+                      label: 'Email',
+                      icon: Icons.email_outlined,
+                    ),
                     validator: (value) {
-                      if (value == null || value.trim().isEmpty)
-                        return 'izzyhost@spi2m.co.id';
-                      if (!value.contains('@'))
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Email tidak boleh kosong';
+                      }
+                      if (!value.contains('@')) {
                         return 'Format email tidak valid';
+                      }
                       return null;
                     },
                   ),
                   const SizedBox(height: 16),
+
+                  // Password field
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
-                    decoration: InputDecoration(
-                      labelText: '123',
-                      prefixIcon: const Icon(Icons.lock_outline),
+                    style: const TextStyle(color: AppColors.textPrimary),
+                    decoration: _inputDecoration(
+                      label: 'Kata Sandi',
+                      icon: Icons.lock_outline,
                       suffixIcon: IconButton(
-                        icon: Icon(_obscurePassword
-                            ? Icons.visibility_off
-                            : Icons.visibility),
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          color: AppColors.textSecondary,
+                        ),
                         onPressed: () => setState(
                             () => _obscurePassword = !_obscurePassword),
                       ),
                     ),
                     validator: (value) {
-                      if (value == null || value.isEmpty) return '123';
+                      if (value == null || value.isEmpty) {
+                        return 'Kata sandi tidak boleh kosong';
+                      }
                       return null;
                     },
                   ),
-                  const SizedBox(height: 24),
-                  AppButton(
-                    label: 'Masuk',
-                    isLoading: authProvider.state == AuthState.loading,
-                    onPressed: () => _handleLogin(authProvider),
+                  const SizedBox(height: 28),
+
+                  // Login button
+                  SizedBox(
+                    height: 52,
+                    child: AppButton(
+                      label: 'Masuk',
+                      isLoading: authProvider.state == AuthState.loading,
+                      onPressed: () => _handleLogin(authProvider),
+                    ),
                   ),
+
                   if (authProvider.state == AuthState.securityBlocked) ...[
                     const SizedBox(height: 20),
                     SecurityBlockerView(
@@ -122,10 +205,30 @@ class _LoginViewState extends State<LoginView> {
                     ),
                   ] else if (authProvider.state == AuthState.error) ...[
                     const SizedBox(height: 16),
-                    Text(
-                      authProvider.errorMessage ?? 'Login gagal',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: AppColors.error),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 10, horizontal: 14),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.error_outline,
+                              color: AppColors.error, size: 18),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              authProvider.errorMessage ?? 'Login gagal',
+                              style: const TextStyle(
+                                color: AppColors.error,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ],
