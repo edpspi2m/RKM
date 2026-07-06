@@ -70,12 +70,40 @@ class ApiClient {
 
   Map<String, dynamic> _handleResponse(http.Response response) {
     final statusCode = response.statusCode;
-    Map<String, dynamic> decoded;
+    final contentType = response.headers['content-type'] ?? '';
+    final trimmedBody = response.body.trim();
 
+    // Deteksi respons yang BUKAN JSON (halaman 404 server, error PHP fatal,
+    // maintenance page, dsb). Sebelum ada pengecekan ini, isi mentah halaman
+    // seperti itu bisa lolos ke UI dan tampil sebagai teks error ke user.
+    final looksLikeJson = contentType.contains('application/json') ||
+        trimmedBody.startsWith('{') ||
+        trimmedBody.startsWith('[');
+
+    if (!looksLikeJson) {
+      if (statusCode == 404) {
+        throw ApiException(
+          'Layanan tidak ditemukan di server (404). Endpoint mungkin belum tersedia atau salah alamat.',
+          statusCode: statusCode,
+        );
+      }
+      if (statusCode >= 500) {
+        throw ApiException(
+          'Server sedang bermasalah (kode $statusCode). Coba lagi beberapa saat lagi.',
+          statusCode: statusCode,
+        );
+      }
+      throw ApiException(
+        'Server mengirim respons yang tidak dikenali (kode $statusCode).',
+        statusCode: statusCode,
+      );
+    }
+
+    Map<String, dynamic> decoded;
     try {
-      decoded = response.body.isEmpty ? {} : jsonDecode(response.body) as Map<String, dynamic>;
+      decoded = trimmedBody.isEmpty ? {} : jsonDecode(trimmedBody) as Map<String, dynamic>;
     } catch (_) {
-      decoded = {'message': response.body};
+      throw ApiException('Gagal membaca respons server (format JSON tidak valid).', statusCode: statusCode);
     }
 
     if (statusCode >= 200 && statusCode < 300) {
