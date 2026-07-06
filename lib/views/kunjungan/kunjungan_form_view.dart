@@ -6,6 +6,7 @@ import '../../app/theme/app_colors.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/loading_overlay.dart';
 import '../../data/models/member_model.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/kunjungan_provider.dart';
 
 class KunjunganFormView extends StatefulWidget {
@@ -55,9 +56,11 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
       return;
     }
 
+    final username = context.read<AuthProvider>().user?.username ?? '';
     final berhasil = await provider.kirim(
       namaToko: _namaTokoController.text.trim(),
       catatan: _catatanController.text.trim(),
+      username: username,
     );
 
     if (!mounted) return;
