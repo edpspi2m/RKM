@@ -46,7 +46,7 @@ class KunjunganProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> kirim({required String namaToko, required String catatan}) async {
+  Future<bool> kirim({required String namaToko, required String catatan, required String username}) async {
     if (_fotoWatermark == null || _lokasi == null) {
       _errorMessage = 'Foto dan lokasi belum diproses.';
       notifyListeners();
@@ -56,7 +56,13 @@ class KunjunganProvider extends ChangeNotifier {
     notifyListeners();
     try {
       final String path = _fotoWatermark is io.File ? _fotoWatermark.path : 'web_image_path';
-      final kunjungan = KunjunganModel(namaToko: namaToko, catatan: catatan, lokasi: _lokasi!, fotoPath: path);
+      final kunjungan = KunjunganModel(
+        namaToko: namaToko,
+        catatan: catatan,
+        lokasi: _lokasi!,
+        fotoPath: path,
+        username: username,
+      );
       await _repository.kirimKunjungan(kunjungan: kunjungan, fotoWatermark: _fotoWatermark!);
       _state = SubmitState.success;
       notifyListeners();
