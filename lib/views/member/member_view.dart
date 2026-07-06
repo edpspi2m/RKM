@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../app/theme/app_colors.dart';
+import '../../core/widgets/state_placeholder.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/member_provider.dart';
 import '../kunjungan/kunjungan_form_view.dart';
@@ -56,19 +57,16 @@ class _MemberViewState extends State<MemberView> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (provider.state == MemberState.error) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Text(
-                        provider.errorMessage ?? 'Gagal memuat data member',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: AppColors.error),
-                      ),
-                    ),
+                  return StatePlaceholder.error(
+                    message: provider.errorMessage ?? 'Gagal memuat data member',
+                    onRetry: () => context.read<MemberProvider>().load(username),
                   );
                 }
                 if (provider.members.isEmpty) {
-                  return const Center(child: Text('Belum ada member terdaftar untuk Anda'));
+                  return StatePlaceholder.empty(
+                    title: 'Belum ada member terdaftar',
+                    message: 'Member yang terdaftar untuk akun Anda akan muncul di sini.',
+                  );
                 }
                 return ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
