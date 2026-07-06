@@ -12,7 +12,9 @@ class MainNavigationView extends StatefulWidget {
 }
 
 class _MainNavigationViewState extends State<MainNavigationView> {
-  int _currentIndex = 1; // default buka Member
+  static const int _initialIndex = 1; // default buka Member
+  late final PageController _pageController = PageController(initialPage: _initialIndex);
+  int _currentIndex = _initialIndex;
 
   final List<Widget> _pages = const [
     KunjunganFormView(),
@@ -20,13 +22,35 @@ class _MainNavigationViewState extends State<MainNavigationView> {
     RiwayatView(),
   ];
 
+  void _goToTab(int index) {
+    if (index == _currentIndex) return;
+    setState(() => _currentIndex = index);
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeInOutCubic,
+    );
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(index: _currentIndex, children: _pages),
+      // Swipe kiri/kanan antar halaman, dengan animasi geser yang smooth.
+      body: PageView(
+        controller: _pageController,
+        physics: const BouncingScrollPhysics(),
+        onPageChanged: (index) => setState(() => _currentIndex = index),
+        children: _pages,
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
+        onTap: _goToTab,
         selectedItemColor: AppColors.primary,
         unselectedItemColor: AppColors.textSecondary,
         showUnselectedLabels: true,
