@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../app/theme/app_colors.dart';
+import '../../core/widgets/state_placeholder.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/riwayat_provider.dart';
 
@@ -58,12 +59,16 @@ class _RiwayatViewState extends State<RiwayatView> {
               return const Center(child: CircularProgressIndicator());
             }
             if (provider.state == RiwayatState.error) {
-              return Center(
-                child: Text(provider.errorMessage ?? 'Gagal memuat riwayat'),
+              return StatePlaceholder.error(
+                message: provider.errorMessage ?? 'Gagal memuat riwayat',
+                onRetry: () => context.read<RiwayatProvider>().load(userId),
               );
             }
             if (provider.grouped.isEmpty) {
-              return const Center(child: Text('Belum ada riwayat kunjungan'));
+              return StatePlaceholder.empty(
+                title: 'Belum ada riwayat kunjungan',
+                message: 'Riwayat akan muncul di sini setelah kamu mengirim laporan kunjungan.',
+              );
             }
             return ListView.builder(
               padding: const EdgeInsets.all(16),
