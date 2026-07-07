@@ -8,6 +8,7 @@ class MemberModel {
   final double? latitude;
   final double? longitude;
   final String? belanjaTerakhir;
+  final bool sudahKunjungan;
 
   const MemberModel({
     required this.id,
@@ -19,6 +20,7 @@ class MemberModel {
     this.latitude,
     this.longitude,
     this.belanjaTerakhir,
+    this.sudahKunjungan = false,
   });
 
   factory MemberModel.fromJson(Map<String, dynamic> json) {
@@ -32,6 +34,7 @@ class MemberModel {
       latitude: json['latitude'] != null ? double.tryParse(json['latitude'].toString()) : null,
       longitude: json['longitude'] != null ? double.tryParse(json['longitude'].toString()) : null,
       belanjaTerakhir: json['belanja_terakhir'] as String?,
+      sudahKunjungan: (int.tryParse(json['sudah_kunjungan']?.toString() ?? '0') ?? 0) > 0,
     );
   }
 }
