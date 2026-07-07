@@ -1,27 +1,24 @@
 import 'gps_location_model.dart';
 
 class KunjunganModel {
-  final String namaToko;
+  final String userId;
+  final String member;
   final String catatan;
   final GpsLocationModel lokasi;
-  final String fotoPath;
-  final String username;
 
   const KunjunganModel({
-    required this.namaToko,
+    required this.userId,
+    required this.member,
     required this.catatan,
     required this.lokasi,
-    required this.fotoPath,
-    required this.username,
   });
 
   Map<String, String> toFields() => {
-        'username': username,
-        'nama_toko': namaToko,
+        'user_id': userId,
+        'member': member,
         'catatan': catatan,
         'latitude': lokasi.latitude.toString(),
         'longitude': lokasi.longitude.toString(),
-        'alamat': lokasi.address,
-        'waktu_kunjungan': lokasi.capturedAt.toIso8601String(),
+        'timestamp': lokasi.capturedAt.toIso8601String(),
       };
 }
