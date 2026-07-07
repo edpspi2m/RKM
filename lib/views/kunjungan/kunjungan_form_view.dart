@@ -38,7 +38,14 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
   }
 
   Future<void> _ambilFoto(KunjunganProvider provider) async {
-    final picked = await _picker.pickImage(source: ImageSource.camera, imageQuality: 90);
+    // Membatasi resolusi gambar untuk mengurangi lag saat proses watermark
+    final picked = await _picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 80,
+      maxWidth: 1280,
+      maxHeight: 1280,
+    );
+    
     if (picked == null) return;
     final berhasil = await provider.prosesFoto(File(picked.path));
     if (!berhasil && mounted) {
