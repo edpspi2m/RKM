@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../app/theme/app_colors.dart';
-import '../../core/widgets/state_placeholder.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/member_provider.dart';
 import '../kunjungan/kunjungan_form_view.dart';
@@ -18,15 +17,16 @@ class _MemberViewState extends State<MemberView> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final username = context.read<AuthProvider>().user?.username ?? '';
-      context.read<MemberProvider>().load(username);
+      final userId = context.read<AuthProvider>().user?.id ?? '';
+      context.read<MemberProvider>().load(userId);
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<MemberProvider>();
-    final username = context.read<AuthProvider>().user?.username ?? '';
+    final userId = context.read<AuthProvider>().user?.id ?? '';
+    final belumCount = provider.members.where((m) => !m.sudahKunjungan).length;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -35,38 +35,45 @@ class _MemberViewState extends State<MemberView> {
         children: [
           Padding(
             padding: const EdgeInsets.all(16),
-            child: TextField(
-              onChanged: (v) => context.read<MemberProvider>().search(v),
-              decoration: InputDecoration(
-                hintText: 'Cari nama atau kode member...',
-                prefixIcon: const Icon(Icons.search, color: AppColors.primary),
-                filled: true,
-                fillColor: AppColors.inputFill,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(
+                  onChanged: (v) => context.read<MemberProvider>().search(v),
+                  decoration: InputDecoration(
+                    hintText: 'Cari nama atau kode member...',
+                    prefixIcon: const Icon(Icons.search, color: AppColors.primary),
+                    filled: true,
+                    fillColor: AppColors.inputFill,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
                 ),
-              ),
+                if (provider.state == MemberState.success) ...[
+                  const SizedBox(height: 10),
+                  Text('$belumCount member belum dikunjungi hari ini',
+                      style: const TextStyle(color: AppColors.warning, fontSize: 12, fontWeight: FontWeight.w600)),
+                ],
+              ],
             ),
           ),
           Expanded(
             child: RefreshIndicator(
-              onRefresh: () => context.read<MemberProvider>().load(username),
+              onRefresh: () => context.read<MemberProvider>().load(userId),
               child: Builder(builder: (_) {
                 if (provider.state == MemberState.loading) {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (provider.state == MemberState.error) {
-                  return StatePlaceholder.error(
-                    message: provider.errorMessage ?? 'Gagal memuat data member',
-                    onRetry: () => context.read<MemberProvider>().load(username),
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(provider.errorMessage ?? 'Gagal memuat data member',
+                          textAlign: TextAlign.center, style: const TextStyle(color: AppColors.error)),
+                    ),
                   );
                 }
                 if (provider.members.isEmpty) {
-                  return StatePlaceholder.empty(
-                    title: 'Belum ada member terdaftar',
-                    message: 'Member yang terdaftar untuk akun Anda akan muncul di sini.',
-                  );
+                  return const Center(child: Text('Belum ada member terdaftar untuk Anda'));
                 }
                 return ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -78,31 +85,40 @@ class _MemberViewState extends State<MemberView> {
                       decoration: BoxDecoration(
                         color: AppColors.surface,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: AppColors.divider),
+                        border: Border.all(
+                          color: member.sudahKunjungan ? AppColors.action.withOpacity(0.3) : AppColors.divider,
+                        ),
                       ),
                       child: ListTile(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         leading: Container(
-                          width: 44,
-                          height: 44,
+                          width: 44, height: 44,
                           decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.1),
+                            color: member.sudahKunjungan
+                                ? AppColors.action.withOpacity(0.1)
+                                : AppColors.primary.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: const Icon(Icons.storefront_outlined, color: AppColors.primary),
+                          child: Icon(
+                            member.sudahKunjungan ? Icons.check_circle : Icons.storefront_outlined,
+                            color: member.sudahKunjungan ? AppColors.action : AppColors.primary,
+                          ),
                         ),
-                        title: Text(member.nama,
-                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                        subtitle: Text(
-                          '${member.kodeMember} • ${member.kota ?? '-'}',
-                          style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
-                        ),
-                        trailing: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+                        title: Text(member.nama, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                        subtitle: Text('${member.kodeMember} • ${member.kota ?? '-'}',
+                            style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                        trailing: member.sudahKunjungan
+                            ? Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                    color: AppColors.action.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                                child: const Text('Selesai',
+                                    style: TextStyle(color: AppColors.action, fontSize: 10, fontWeight: FontWeight.bold)),
+                              )
+                            : const Icon(Icons.chevron_right, color: AppColors.textSecondary),
                         onTap: () {
                           Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => KunjunganFormView(selectedMember: member),
-                            ),
+                            MaterialPageRoute(builder: (_) => KunjunganFormView(selectedMember: member)),
                           );
                         },
                       ),
