@@ -28,6 +28,7 @@ class KunjunganProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   AppFile? get fotoWatermark => _fotoWatermark;
   GpsLocationModel? get lokasi => _lokasi;
+  WhatsappShareService get whatsappShareService => _whatsappShareService;
 
   Future<bool> prosesFoto(AppFile fotoAsli) async {
     _state = SubmitState.processingPhoto;
@@ -49,8 +50,6 @@ class KunjunganProvider extends ChangeNotifier {
     }
   }
 
-  /// [userId] wajib dikirim — didapat dari AuthProvider.user.id di halaman form.
-  /// [member] adalah nama toko/outlet yang dikunjungi.
   Future<bool> kirim({
     required String userId,
     required String member,
@@ -81,8 +80,6 @@ class KunjunganProvider extends ChangeNotifier {
       _state = SubmitState.success;
       notifyListeners();
 
-      await bagikanKeWhatsapp(member);
-
       return true;
     } catch (e) {
       _state = SubmitState.error;
@@ -91,15 +88,6 @@ class KunjunganProvider extends ChangeNotifier {
     } finally {
       notifyListeners();
     }
-  }
-
-  Future<void> bagikanKeWhatsapp(String member) async {
-    if (_fotoWatermark == null || _lokasi == null) return;
-    await _whatsappShareService.shareKunjungan(
-      fotoFile: _fotoWatermark!,
-      namaToko: member,
-      lokasi: _lokasi!,
-    );
   }
 
   void reset() {
