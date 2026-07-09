@@ -32,6 +32,7 @@ dependencies:
 
   # Share ke WhatsApp
   share_plus: ^10.1.2
+  url_launcher: ^6.3.1
 
   # Session & Formatting
   shared_preferences: ^2.3.2
