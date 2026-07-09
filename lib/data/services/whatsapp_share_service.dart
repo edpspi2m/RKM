@@ -1,30 +1,30 @@
-import 'dart:io';
+import 'dart:io' if (dart.library.html) 'dart:html' as io;
 import 'package:share_plus/share_plus.dart';
 import '../models/gps_location_model.dart';
-import '../../core/utils/date_formatter.dart';
 
 class WhatsappShareService {
   Future<void> shareKunjungan({
-    required File fotoFile,
+    required dynamic fotoFile,
     required String namaToko,
     required GpsLocationModel lokasi,
   }) async {
-    final message = _buildMessage(namaToko, lokasi);
+    final mapsUrl = 'https://maps.google.com/?q=${lokasi.latitude},${lokasi.longitude}';
+    final pesan = 'Laporan Kunjungan RKM\n'
+        'Toko: $namaToko\n'
+        'Waktu: ${lokasi.capturedAt}\n'
+        'Lokasi: $mapsUrl';
 
-    await Share.shareXFiles(
-      [XFile(fotoFile.path)],
-      text: message,
-    );
-  }
-
-  String _buildMessage(String namaToko, GpsLocationModel lokasi) {
-    return '''
-*Laporan Kunjungan RKM*
-Toko: $namaToko
-Tanggal: ${DateFormatter.fullDateTime(lokasi.capturedAt)}
-Alamat: ${lokasi.address}
-Koordinat: ${lokasi.coordinateText}
-'''
-        .trim();
+    try {
+      if (fotoFile is io.File) {
+        await Share.shareXFiles(
+          [XFile(fotoFile.path)],
+          text: pesan,
+        );
+      } else {
+        await Share.share(pesan);
+      }
+    } catch (_) {
+      // Kegagalan share tidak boleh menggagalkan proses submit laporan utama
+    }
   }
 }
