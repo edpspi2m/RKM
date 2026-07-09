@@ -8,6 +8,7 @@ import '../../core/widgets/loading_overlay.dart';
 import '../../data/models/member_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/kunjungan_provider.dart';
+import '../../providers/riwayat_provider.dart';
 
 class KunjunganFormView extends StatefulWidget {
   final MemberModel? selectedMember;
@@ -38,14 +39,12 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
   }
 
   Future<void> _ambilFoto(KunjunganProvider provider) async {
-    // Membatasi resolusi gambar untuk mengurangi lag saat proses watermark
     final picked = await _picker.pickImage(
       source: ImageSource.camera,
       imageQuality: 80,
       maxWidth: 1280,
       maxHeight: 1280,
     );
-    
     if (picked == null) return;
     final berhasil = await provider.prosesFoto(File(picked.path));
     if (!berhasil && mounted) {
@@ -63,18 +62,27 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
       return;
     }
 
-    final username = context.read<AuthProvider>().user?.username ?? '';
+    final userId = context.read<AuthProvider>().user?.id;
+    if (userId == null || userId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sesi login tidak valid, silakan login ulang.')),
+      );
+      return;
+    }
+
     final berhasil = await provider.kirim(
-      namaToko: _namaTokoController.text.trim(),
+      userId: userId,
+      member: _namaTokoController.text.trim(),
       catatan: _catatanController.text.trim(),
-      username: username,
     );
 
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(berhasil ? 'Laporan berhasil dikirim & dibagikan ke WhatsApp' : (provider.errorMessage ?? 'Gagal mengirim laporan')),
+        content: Text(berhasil
+            ? 'Laporan berhasil dikirim & dibagikan ke WhatsApp'
+            : (provider.errorMessage ?? 'Gagal mengirim laporan')),
         backgroundColor: berhasil ? AppColors.action : AppColors.error,
       ),
     );
@@ -82,7 +90,10 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
     if (berhasil) {
       _catatanController.clear();
       provider.reset();
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        context.read<RiwayatProvider>().load(userId);
+        Navigator.of(context).pop();
+      }
     }
   }
 
@@ -104,7 +115,6 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Foto
               GestureDetector(
                 onTap: () => _ambilFoto(provider),
                 child: Container(
@@ -140,8 +150,6 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
                 ),
               ),
               const SizedBox(height: 20),
-
-              // Section: Info Toko
               const Text('Informasi Toko',
                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
               const SizedBox(height: 8),
@@ -158,8 +166,6 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
                 ),
               ),
               const SizedBox(height: 20),
-
-              // Section: Keterangan
               const Text('Keterangan Kunjungan',
                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
               const SizedBox(height: 8),
@@ -175,7 +181,6 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
                 ),
               ),
               const SizedBox(height: 28),
-
               SizedBox(
                 height: 52,
                 child: AppButton(
