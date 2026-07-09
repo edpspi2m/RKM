@@ -13,8 +13,10 @@ class KunjunganProvider extends ChangeNotifier {
   final KunjunganRepository _repository;
   final WhatsappShareService _whatsappShareService;
 
-  KunjunganProvider({required KunjunganRepository repository, WhatsappShareService? whatsappShareService})
-      : _repository = repository,
+  KunjunganProvider({
+    required KunjunganRepository repository,
+    WhatsappShareService? whatsappShareService,
+  })  : _repository = repository,
         _whatsappShareService = whatsappShareService ?? WhatsappShareService();
 
   SubmitState _state = SubmitState.idle;
@@ -31,6 +33,7 @@ class KunjunganProvider extends ChangeNotifier {
     _state = SubmitState.processingPhoto;
     _errorMessage = null;
     notifyListeners();
+
     try {
       final hasil = await _repository.prosesFoto(fotoAsli);
       _fotoWatermark = hasil.fotoFinal;
@@ -46,27 +49,40 @@ class KunjunganProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> kirim({required String namaToko, required String catatan, required String username}) async {
+  /// [userId] wajib dikirim — didapat dari AuthProvider.user.id di halaman form.
+  /// [member] adalah nama toko/outlet yang dikunjungi.
+  Future<bool> kirim({
+    required String userId,
+    required String member,
+    required String catatan,
+  }) async {
     if (_fotoWatermark == null || _lokasi == null) {
       _errorMessage = 'Foto dan lokasi belum diproses.';
       notifyListeners();
       return false;
     }
+
     _state = SubmitState.uploading;
     notifyListeners();
+
     try {
-      final String path = _fotoWatermark is io.File ? _fotoWatermark.path : 'web_image_path';
       final kunjungan = KunjunganModel(
-        namaToko: namaToko,
+        userId: userId,
+        member: member,
         catatan: catatan,
         lokasi: _lokasi!,
-        fotoPath: path,
-        username: username,
       );
-      await _repository.kirimKunjungan(kunjungan: kunjungan, fotoWatermark: _fotoWatermark!);
+
+      await _repository.kirimKunjungan(
+        kunjungan: kunjungan,
+        fotoWatermark: _fotoWatermark!,
+      );
+
       _state = SubmitState.success;
       notifyListeners();
-      await bagikanKeWhatsapp(namaToko);
+
+      await bagikanKeWhatsapp(member);
+
       return true;
     } catch (e) {
       _state = SubmitState.error;
@@ -77,9 +93,13 @@ class KunjunganProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> bagikanKeWhatsapp(String namaToko) async {
+  Future<void> bagikanKeWhatsapp(String member) async {
     if (_fotoWatermark == null || _lokasi == null) return;
-    await _whatsappShareService.shareKunjungan(fotoFile: _fotoWatermark!, namaToko: namaToko, lokasi: _lokasi!);
+    await _whatsappShareService.shareKunjungan(
+      fotoFile: _fotoWatermark!,
+      namaToko: member,
+      lokasi: _lokasi!,
+    );
   }
 
   void reset() {
