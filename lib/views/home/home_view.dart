@@ -38,7 +38,7 @@ class HomeView extends StatelessWidget {
                 subtitle: const Text('Ambil foto dengan watermark lokasi'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const KunjunganFormView()),
+                  MaterialPageRoute(builder: (_) => KunjunganFormView()), // <- const DIHAPUS DI SINI
                 ),
               ),
             ),
