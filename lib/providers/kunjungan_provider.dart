@@ -36,14 +36,18 @@ class KunjunganProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final hasil = await _repository.prosesFoto(fotoAsli);
+      final hasil = await _repository.prosesFoto(fotoAsli).timeout(
+        const Duration(seconds: 20),
+        onTimeout: () => throw Exception(
+            'Proses GPS & foto terlalu lama. Pastikan GPS aktif dan sinyal cukup, lalu coba lagi.'),
+      );
       _fotoWatermark = hasil.fotoFinal;
       _lokasi = hasil.lokasi;
       _state = SubmitState.idle;
       return true;
     } catch (e) {
       _state = SubmitState.error;
-      _errorMessage = e.toString();
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
       return false;
     } finally {
       notifyListeners();
@@ -79,7 +83,6 @@ class KunjunganProvider extends ChangeNotifier {
 
       _state = SubmitState.success;
       notifyListeners();
-
       return true;
     } catch (e) {
       _state = SubmitState.error;
