@@ -5,6 +5,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/member_provider.dart';
 import '../../providers/promo_provider.dart';
 import '../kunjungan/kunjungan_form_view.dart';
+import '../profile/profile_view.dart';
 
 class KunjunganHomeView extends StatefulWidget {
   const KunjunganHomeView({super.key});
@@ -31,6 +32,13 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
   void dispose() {
     _bannerController.dispose();
     super.dispose();
+  }
+
+  String _getInitial(String nama) {
+    if (nama.isEmpty) return '?';
+    final parts = nama.trim().split(' ');
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return nama.substring(0, nama.length >= 2 ? 2 : 1).toUpperCase();
   }
 
   @override
@@ -74,10 +82,25 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                         Text(nama, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
                       ],
                     ),
-                    Container(
-                      width: 44, height: 44,
-                      decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
-                      child: const Icon(Icons.storefront, color: Colors.white),
+                    GestureDetector(
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const ProfileView()),
+                      ),
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
+                        ),
+                        child: Center(
+                          child: Text(
+                            _getInitial(nama),
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -164,7 +187,7 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: GestureDetector(
                   onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => KunjunganFormView()), 
+                    MaterialPageRoute(builder: (_) => const KunjunganFormView()),
                   ),
                   child: Container(
                     padding: const EdgeInsets.all(18),
