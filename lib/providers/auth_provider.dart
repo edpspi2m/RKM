@@ -35,9 +35,17 @@ class AuthProvider extends ChangeNotifier {
       final username = prefs.getString('username');
       final nama = prefs.getString('nama');
       final role = prefs.getString('role');
+      final fotoProfil = prefs.getString('foto_profil');
       if (token != null && userId != null) {
         _apiClient.setToken(token);
-        _user = UserModel(id: userId, username: username ?? '', nama: nama ?? '', role: role ?? '', token: token);
+        _user = UserModel(
+          id: userId,
+          username: username ?? '',
+          nama: nama ?? '',
+          role: role ?? '',
+          token: token,
+          fotoProfil: fotoProfil,
+        );
         _state = AuthState.success;
       } else {
         _state = AuthState.idle;
@@ -78,6 +86,24 @@ class AuthProvider extends ChangeNotifier {
     await prefs.setString('username', user.username);
     await prefs.setString('nama', user.nama);
     await prefs.setString('role', user.role);
+    if (user.fotoProfil != null) {
+      await prefs.setString('foto_profil', user.fotoProfil!);
+    }
+  }
+
+  Future<void> updateFotoProfil(String url) async {
+    if (_user == null) return;
+    _user = UserModel(
+      id: _user!.id,
+      nama: _user!.nama,
+      username: _user!.username,
+      role: _user!.role,
+      token: _user!.token,
+      fotoProfil: url,
+    );
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('foto_profil', url);
+    notifyListeners();
   }
 
   Future<void> logout() async {
