@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import '../../app/theme/app_colors.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/loading_overlay.dart';
-import '../../data/models/gps_location_model.dart';
+import '../../core/widgets/fake_gps_dialog.dart';
 import '../../data/models/member_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/kunjungan_provider.dart';
@@ -39,6 +39,11 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
     super.dispose();
   }
 
+  bool _isFakeGpsError(String msg) {
+    final lower = msg.toLowerCase();
+    return lower.contains('gps') || lower.contains('mock') || lower.contains('palsu') || lower.contains('fake');
+  }
+
   Future<void> _ambilFoto(KunjunganProvider provider) async {
     final picked = await _picker.pickImage(
       source: ImageSource.camera,
@@ -49,40 +54,13 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
     if (picked == null) return;
     final berhasil = await provider.prosesFoto(File(picked.path));
     if (!berhasil && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(provider.errorMessage ?? 'Gagal memproses foto')),
-      );
+      final msg = provider.errorMessage ?? 'Gagal memproses foto';
+      if (_isFakeGpsError(msg)) {
+        await FakeGpsDialog.show(context, detail: msg);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      }
     }
-  }
-
-  Future<void> _tampilkanDialogKirimWA(String namaToko, GpsLocationModel lokasi, KunjunganProvider provider) async {
-    final waService = provider.whatsappShareService;
-    final nomorList = waService.daftarNomor;
-    if (nomorList.isEmpty || !mounted) return;
-
-    await showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Kirim Laporan ke WhatsApp'),
-        content: Text('Pilih nomor tujuan (${nomorList.length} nomor tersedia):'),
-        actions: [
-          ...nomorList.asMap().entries.map((entry) {
-            final index = entry.key;
-            final nomor = entry.value;
-            return TextButton(
-              onPressed: () {
-                waService.kirimKeNomor(nomor, namaToko, lokasi);
-              },
-              child: Text('Kirim ke Nomor ${index + 1} ($nomor)'),
-            );
-          }),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Tutup', style: TextStyle(color: AppColors.textSecondary)),
-          ),
-        ],
-      ),
-    );
   }
 
   Future<void> _kirim(KunjunganProvider provider) async {
@@ -101,12 +79,9 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
       return;
     }
 
-    final namaToko = _namaTokoController.text.trim();
-    final lokasiTerakhir = provider.lokasi;
-
     final berhasil = await provider.kirim(
       userId: userId,
-      member: namaToko,
+      member: _namaTokoController.text.trim(),
       catatan: _catatanController.text.trim(),
     );
 
@@ -122,11 +97,6 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
     if (berhasil) {
       _catatanController.clear();
       provider.reset();
-
-      if (mounted && lokasiTerakhir != null) {
-        await _tampilkanDialogKirimWA(namaToko, lokasiTerakhir, provider);
-      }
-
       if (mounted) {
         context.read<RiwayatProvider>().load(userId);
         Navigator.of(context).pop();
