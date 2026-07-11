@@ -9,6 +9,9 @@ workflows:
       - name: Get Flutter packages
         script: |
           flutter pub get
+      - name: Generate app icon
+        script: |
+          dart run flutter_launcher_icons
       - name: Build APK
         script: |
           flutter build apk --release
