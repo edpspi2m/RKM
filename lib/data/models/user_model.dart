@@ -4,6 +4,7 @@ class UserModel {
   final String username;
   final String role;
   final String token;
+  final String? fotoProfil;
 
   const UserModel({
     required this.id,
@@ -11,6 +12,7 @@ class UserModel {
     required this.username,
     required this.role,
     this.token = '',
+    this.fotoProfil,
   });
 
   String get email => username;
@@ -23,6 +25,7 @@ class UserModel {
       username: json['username'] as String? ?? '-',
       role: json['role'] as String? ?? '-',
       token: json['token'] as String? ?? '',
+      fotoProfil: json['foto_profil'] as String?,
     );
   }
 
@@ -32,5 +35,6 @@ class UserModel {
         'username': username,
         'role': role,
         'token': token,
+        'foto_profil': fotoProfil,
       };
 }
