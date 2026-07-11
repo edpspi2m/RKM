@@ -9,7 +9,7 @@ class CameraWatermarkService {
   Future<File> applyWatermark({
     required File originalPhoto,
     required GpsLocationModel location,
-    String companyName = 'PT RKM Indonesia',
+    String companyName = 'PT Megah Daya Inti Harapan',
   }) async {
     final bytes = await originalPhoto.readAsBytes();
     final decoded = img.decodeImage(bytes);
