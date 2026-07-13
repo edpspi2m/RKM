@@ -8,6 +8,7 @@ import '../data/services/kunjungan_service.dart';
 import '../data/services/promo_service.dart';
 import '../data/services/member_service.dart';
 import '../data/services/riwayat_service.dart';
+import '../data/services/location_share_service.dart';
 import '../data/repositories/auth_repository.dart';
 import '../data/repositories/kunjungan_repository.dart';
 import '../providers/auth_provider.dart';
@@ -16,6 +17,7 @@ import '../providers/kunjungan_provider.dart';
 import '../providers/promo_provider.dart';
 import '../providers/member_provider.dart';
 import '../providers/riwayat_provider.dart';
+import '../providers/location_share_provider.dart';
 import '../views/login/login_view.dart';
 import '../views/main_navigation_view.dart';
 
@@ -30,6 +32,7 @@ class RkmApp extends StatelessWidget {
     final promoService = PromoService(apiClient);
     final memberService = MemberService(apiClient);
     final riwayatService = RiwayatService(apiClient);
+    final locationShareService = LocationShareService(apiClient);
 
     return MultiProvider(
       providers: [
@@ -49,6 +52,7 @@ class RkmApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => PromoProvider(promoService)),
         ChangeNotifierProvider(create: (_) => MemberProvider(memberService)),
         ChangeNotifierProvider(create: (_) => RiwayatProvider(riwayatService)),
+        ChangeNotifierProvider(create: (_) => LocationShareProvider(locationShareService)),
       ],
       child: MaterialApp(
         title: 'RKM App',
