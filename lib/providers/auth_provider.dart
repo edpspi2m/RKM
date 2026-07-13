@@ -79,6 +79,16 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  // --- TAMBAHAN METHOD BARU UNTUK OTP ---
+  Future<void> loginWithToken(UserModel user) async {
+    _user = user;
+    _apiClient.setToken(user.token);
+    await _persistSession(user);
+    _state = AuthState.success;
+    notifyListeners();
+  }
+  // --------------------------------------
+
   Future<void> _persistSession(UserModel user) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('token', user.token);
