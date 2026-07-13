@@ -1,53 +1,45 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:provider/provider.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 import '../../app/theme/app_colors.dart';
+import '../../providers/auth_provider.dart';
 
-class TrackingMapsView extends StatelessWidget {
+class TrackingMapsView extends StatefulWidget {
   const TrackingMapsView({super.key});
 
-  Future<void> _openTracking() async {
-    final uri = Uri.parse('https://admin2m.isreport.my.id/tracking.php');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
+  @override
+  State<TrackingMapsView> createState() => _TrackingMapsViewState();
+}
+
+class _TrackingMapsViewState extends State<TrackingMapsView> {
+  late final WebViewController _controller;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    final userId = context.read<AuthProvider>().user?.id ?? '';
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setNavigationDelegate(
+        NavigationDelegate(onPageFinished: (_) => setState(() => _isLoading = false)),
+      )
+      ..loadRequest(Uri.parse('https://admin2m.isreport.my.id/tracking_app.php?uid=$userId'));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Tracking Maps')),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.map_outlined, size: 56, color: AppColors.primary),
-              const SizedBox(height: 16),
-              const Text('Lihat posisi sales secara real-time',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600), textAlign: TextAlign.center),
-              const SizedBox(height: 8),
-              const Text('Fitur khusus untuk akun master. Menu ini tidak terlihat oleh akun sales.',
-                  textAlign: TextAlign.center, style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton.icon(
-                  onPressed: _openTracking,
-                  icon: const Icon(Icons.open_in_new, size: 18),
-                  label: const Text('Buka Peta Tracking'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+      appBar: AppBar(
+        title: const Text('Tracking Maps'),
+        actions: [IconButton(icon: const Icon(Icons.refresh), onPressed: () => _controller.reload())],
+      ),
+      body: Stack(
+        children: [
+          WebViewWidget(controller: _controller),
+          if (_isLoading) const Center(child: CircularProgressIndicator()),
+        ],
       ),
     );
   }
