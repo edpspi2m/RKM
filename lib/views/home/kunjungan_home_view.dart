@@ -4,6 +4,7 @@ import '../../app/theme/app_colors.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/member_provider.dart';
 import '../../providers/promo_provider.dart';
+import '../../data/models/promo_model.dart';
 import '../kunjungan/kunjungan_form_view.dart';
 import '../profile/profile_view.dart';
 import '../tracking/share_location_view.dart';
@@ -43,12 +44,63 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
     return nama.substring(0, nama.length >= 2 ? 2 : 1).toUpperCase();
   }
 
+  String _formatRupiah(double? value) {
+    if (value == null) return '-';
+    return 'Rp ${value.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}';
+  }
+
+  void _showPromoDetail(PromoModel promo) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        margin: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (promo.gambarUrl != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: Image.network(promo.gambarUrl!, height: 180, width: double.infinity, fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(height: 180, color: AppColors.primaryLight)),
+              ),
+            const SizedBox(height: 16),
+            Text(promo.judul, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text(promo.deskripsi, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                if (promo.hargaNormal != null)
+                  Text(_formatRupiah(promo.hargaNormal),
+                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, decoration: TextDecoration.lineThrough)),
+                const SizedBox(width: 8),
+                if (promo.hargaPromo != null)
+                  Text(_formatRupiah(promo.hargaPromo),
+                      style: const TextStyle(color: AppColors.action, fontSize: 18, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            if (promo.tanggalMulai != null || promo.tanggalSelesai != null) ...[
+              const SizedBox(height: 10),
+              Text('Periode: ${promo.tanggalMulai ?? '-'} s/d ${promo.tanggalSelesai ?? '-'}',
+                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
     final promoProvider = context.watch<PromoProvider>();
     final memberProvider = context.watch<MemberProvider>();
     final nama = authProvider.user?.nama ?? 'Sales';
+    final fotoProfil = authProvider.user?.fotoProfil;
     final isMaster = authProvider.user?.role == 'master';
     final belumList = memberProvider.members.where((m) => !m.sudahKunjungan).take(3).toList();
     final totalBelum = memberProvider.members.where((m) => !m.sudahKunjungan).length;
@@ -135,13 +187,18 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                               color: Colors.white.withOpacity(0.15),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
+                              image: fotoProfil != null
+                                  ? DecorationImage(image: NetworkImage(fotoProfil), fit: BoxFit.cover)
+                                  : null,
                             ),
-                            child: Center(
-                              child: Text(
-                                _getInitial(nama),
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
-                              ),
-                            ),
+                            child: fotoProfil == null
+                                ? Center(
+                                    child: Text(
+                                      _getInitial(nama),
+                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                                    ),
+                                  )
+                                : null,
                           ),
                         ),
                       ],
@@ -162,47 +219,50 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                       final promo = promoProvider.promoList[index];
                       return Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 6),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(18),
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              if (promo.gambarUrl != null)
-                                Image.network(promo.gambarUrl!, fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => Container(color: AppColors.primaryLight))
-                              else
-                                const DecoratedBox(
+                        child: GestureDetector(
+                          onTap: () => _showPromoDetail(promo),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(18),
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                if (promo.gambarUrl != null)
+                                  Image.network(promo.gambarUrl!, fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => Container(color: AppColors.primaryLight))
+                                else
+                                  const DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [AppColors.primary, AppColors.action],
+                                        begin: Alignment.topLeft, end: Alignment.bottomRight,
+                                      ),
+                                    ),
+                                  ),
+                                DecoratedBox(
                                   decoration: BoxDecoration(
                                     gradient: LinearGradient(
-                                      colors: [AppColors.primary, AppColors.action],
-                                      begin: Alignment.topLeft, end: Alignment.bottomRight,
+                                      colors: [Colors.black.withOpacity(0.55), Colors.transparent],
+                                      begin: Alignment.bottomLeft, end: Alignment.topRight,
                                     ),
                                   ),
                                 ),
-                              DecoratedBox(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [Colors.black.withOpacity(0.55), Colors.transparent],
-                                    begin: Alignment.bottomLeft, end: Alignment.topRight,
+                                Positioned(
+                                  left: 16, right: 16, bottom: 14,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(promo.judul, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                                      if (promo.hargaPromo != null) ...[
+                                        const SizedBox(height: 2),
+                                        Text('Mulai ${_formatRupiah(promo.hargaPromo)}',
+                                            style: const TextStyle(color: Colors.white, fontSize: 12)),
+                                      ],
+                                    ],
                                   ),
                                 ),
-                              ),
-                              Positioned(
-                                left: 16, right: 16, bottom: 14,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(promo.judul, maxLines: 1, overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-                                    if (promo.hargaPromo != null) ...[
-                                      const SizedBox(height: 2),
-                                      Text('Mulai Rp ${promo.hargaPromo!.toStringAsFixed(0)}',
-                                          style: const TextStyle(color: Colors.white, fontSize: 12)),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       );
@@ -303,6 +363,26 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                         ),
                       ),
                     )),
+              ] else if (memberProvider.state == MemberState.success) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.action.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.check_circle_outline, color: AppColors.action, size: 20),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text('Semua member sudah dikunjungi hari ini.', style: TextStyle(fontSize: 13)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ],
           ),
