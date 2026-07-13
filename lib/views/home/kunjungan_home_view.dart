@@ -6,6 +6,8 @@ import '../../providers/member_provider.dart';
 import '../../providers/promo_provider.dart';
 import '../kunjungan/kunjungan_form_view.dart';
 import '../profile/profile_view.dart';
+import '../tracking/share_location_view.dart';
+import '../tracking/tracking_maps_view.dart';
 
 class KunjunganHomeView extends StatefulWidget {
   const KunjunganHomeView({super.key});
@@ -47,6 +49,7 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
     final promoProvider = context.watch<PromoProvider>();
     final memberProvider = context.watch<MemberProvider>();
     final nama = authProvider.user?.nama ?? 'Sales';
+    final isMaster = authProvider.user?.role == 'master';
     final belumList = memberProvider.members.where((m) => !m.sudahKunjungan).take(3).toList();
     final totalBelum = memberProvider.members.where((m) => !m.sudahKunjungan).length;
 
@@ -82,25 +85,66 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                         Text(nama, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
                       ],
                     ),
-                    GestureDetector(
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const ProfileView()),
-                      ),
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
-                        ),
-                        child: Center(
-                          child: Text(
-                            _getInitial(nama),
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                    Row(
+                      children: [
+                        if (isMaster)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: GestureDetector(
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => const TrackingMapsView()),
+                              ),
+                              child: Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
+                                ),
+                                child: const Icon(Icons.map_outlined, color: Colors.white, size: 20),
+                              ),
+                            ),
+                          ),
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: GestureDetector(
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => const ShareLocationView()),
+                            ),
+                            child: Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
+                              ),
+                              child: const Icon(Icons.share_location_outlined, color: Colors.white, size: 20),
+                            ),
                           ),
                         ),
-                      ),
+                        GestureDetector(
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const ProfileView()),
+                          ),
+                          child: Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
+                            ),
+                            child: Center(
+                              child: Text(
+                                _getInitial(nama),
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
