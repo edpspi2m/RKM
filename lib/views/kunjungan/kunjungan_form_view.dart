@@ -5,10 +5,10 @@ import 'package:provider/provider.dart';
 import '../../app/theme/app_colors.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/loading_overlay.dart';
-import '../../core/widgets/fake_gps_dialog.dart';
 import '../../data/models/member_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/kunjungan_provider.dart';
+import '../../providers/member_provider.dart';
 import '../../providers/riwayat_provider.dart';
 
 class KunjunganFormView extends StatefulWidget {
@@ -39,11 +39,6 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
     super.dispose();
   }
 
-  bool _isFakeGpsError(String msg) {
-    final lower = msg.toLowerCase();
-    return lower.contains('gps') || lower.contains('mock') || lower.contains('palsu') || lower.contains('fake');
-  }
-
   Future<void> _ambilFoto(KunjunganProvider provider) async {
     final picked = await _picker.pickImage(
       source: ImageSource.camera,
@@ -54,12 +49,9 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
     if (picked == null) return;
     final berhasil = await provider.prosesFoto(File(picked.path));
     if (!berhasil && mounted) {
-      final msg = provider.errorMessage ?? 'Gagal memproses foto';
-      if (_isFakeGpsError(msg)) {
-        await FakeGpsDialog.show(context, detail: msg);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(provider.errorMessage ?? 'Gagal memproses foto')),
+      );
     }
   }
 
@@ -98,10 +90,86 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
       _catatanController.clear();
       provider.reset();
       if (mounted) {
+        // Refresh riwayat & daftar member (biar yang baru dikunjungi hilang dari "belum dikunjungi")
         context.read<RiwayatProvider>().load(userId);
+        context.read<MemberProvider>().load(userId);
         Navigator.of(context).pop();
       }
     }
+  }
+
+  Widget _buildNamaTokoField() {
+    // Kalau member sudah dipilih dari tab Member, field jadi read-only.
+    if (widget.selectedMember != null) {
+      return TextField(
+        controller: _namaTokoController,
+        readOnly: true,
+        style: const TextStyle(fontSize: 14),
+        decoration: InputDecoration(
+          labelText: 'Nama Toko / Outlet',
+          prefixIcon: const Icon(Icons.storefront_outlined, color: AppColors.primary),
+          filled: true,
+          fillColor: AppColors.divider.withOpacity(0.3),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        ),
+      );
+    }
+
+    // Kalau input manual, tampilkan search dari daftar member milik sales yang login.
+    final members = context.watch<MemberProvider>().members;
+
+    return Autocomplete<MemberModel>(
+      textEditingController: _namaTokoController,
+      displayStringForOption: (m) => m.nama,
+      optionsBuilder: (TextEditingValue value) {
+        if (value.text.trim().isEmpty) return const Iterable<MemberModel>.empty();
+        final query = value.text.toLowerCase();
+        return members.where((m) => m.nama.toLowerCase().contains(query));
+      },
+      onSelected: (m) => setState(() => _namaTokoController.text = m.nama),
+      fieldViewBuilder: (context, controller, focusNode, onSubmit) {
+        return TextField(
+          controller: controller,
+          focusNode: focusNode,
+          style: const TextStyle(fontSize: 14),
+          decoration: InputDecoration(
+            labelText: 'Nama Toko / Outlet',
+            hintText: 'Ketik untuk cari member...',
+            prefixIcon: const Icon(Icons.storefront_outlined, color: AppColors.primary),
+            filled: true,
+            fillColor: AppColors.inputFill,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+          ),
+        );
+      },
+      optionsViewBuilder: (context, onSelected, options) {
+        return Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            elevation: 4,
+            borderRadius: BorderRadius.circular(12),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 220),
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                shrinkWrap: true,
+                itemCount: options.length,
+                itemBuilder: (context, index) {
+                  final option = options.elementAt(index);
+                  return ListTile(
+                    dense: true,
+                    leading: const Icon(Icons.storefront_outlined, size: 18, color: AppColors.primary),
+                    title: Text(option.nama, style: const TextStyle(fontSize: 13)),
+                    subtitle: Text(option.kota ?? '-', style: const TextStyle(fontSize: 11)),
+                    onTap: () => onSelected(option),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -160,18 +228,7 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
               const Text('Informasi Toko',
                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
               const SizedBox(height: 8),
-              TextField(
-                controller: _namaTokoController,
-                readOnly: widget.selectedMember != null,
-                style: const TextStyle(fontSize: 14),
-                decoration: InputDecoration(
-                  labelText: 'Nama Toko / Outlet',
-                  prefixIcon: const Icon(Icons.storefront_outlined, color: AppColors.primary),
-                  filled: true,
-                  fillColor: widget.selectedMember != null ? AppColors.divider.withOpacity(0.3) : AppColors.inputFill,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                ),
-              ),
+              _buildNamaTokoField(),
               const SizedBox(height: 20),
               const Text('Keterangan Kunjungan',
                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
