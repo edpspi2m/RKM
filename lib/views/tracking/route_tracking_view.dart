@@ -64,7 +64,7 @@ class _RouteTrackingViewState extends State<RouteTrackingView> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Rekam Rute Perjalanan')),
+      appBar: AppBar(title: const Text('Rute Perjalanan')),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -120,7 +120,7 @@ class _RouteTrackingViewState extends State<RouteTrackingView> {
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Saat aktif, akan muncul notifikasi tetap di HP Anda ("RKM — Tracking Rute") sesuai ketentuan Android. Ini normal dan tidak bisa disembunyikan.',
+                      'Saat aktif, akan muncul notifikasi tetap di HP Anda ("RKM —  Rute") sesuai ketentuan Android. Ini normal dan tidak bisa disembunyikan.',
                       style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
                     ),
                   ),
