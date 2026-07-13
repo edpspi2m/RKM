@@ -1,55 +1,13 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../app/theme/app_colors.dart';
-import '../../core/network/api_client.dart';
 import '../../providers/auth_provider.dart';
 import '../login/login_view.dart';
 
-class ProfileView extends StatefulWidget {
+class ProfileView extends StatelessWidget {
   const ProfileView({super.key});
 
-  @override
-  State<ProfileView> createState() => _ProfileViewState();
-}
-
-class _ProfileViewState extends State<ProfileView> {
-  bool _isUploading = false;
-
-  Future<void> _pickAndUploadPhoto() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80, maxWidth: 600, maxHeight: 600);
-    if (picked == null) return;
-
-    final authProvider = context.read<AuthProvider>();
-    final userId = authProvider.user?.id;
-    if (userId == null) return;
-
-    setState(() => _isUploading = true);
-
-    try {
-      final apiClient = context.read<ApiClient>();
-      final response = await apiClient.postMultipart(
-        '/upload_foto_profil.php',
-        fields: {'user_id': userId},
-        file: File(picked.path),
-        fileFieldName: 'foto',
-      );
-      final url = response['foto_url'] as String?;
-      if (url != null) {
-        await authProvider.updateFotoProfil(url);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal unggah foto: $e')));
-      }
-    } finally {
-      if (mounted) setState(() => _isUploading = false);
-    }
-  }
-
-  Future<void> _confirmLogout() async {
+  Future<void> _confirmLogout(BuildContext context) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -65,15 +23,22 @@ class _ProfileViewState extends State<ProfileView> {
       ),
     );
 
-    if (confirm == true && mounted) {
+    if (confirm == true && context.mounted) {
       await context.read<AuthProvider>().logout();
-      if (mounted) {
+      if (context.mounted) {
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const LoginView()),
           (route) => false,
         );
       }
     }
+  }
+
+  String _getInitial(String nama) {
+    if (nama.isEmpty) return '?';
+    final parts = nama.trim().split(' ');
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return nama.substring(0, nama.length >= 2 ? 2 : 1).toUpperCase();
   }
 
   @override
@@ -91,52 +56,39 @@ class _ProfileViewState extends State<ProfileView> {
         children: [
           const SizedBox(height: 24),
           Center(
-            child: Stack(
-              children: [
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.inputFill,
-                    border: Border.all(color: AppColors.divider, width: 1),
-                    image: fotoUrl != null
-                        ? DecorationImage(image: NetworkImage(fotoUrl), fit: BoxFit.cover)
-                        : null,
-                  ),
-                  child: fotoUrl == null
-                      ? const Icon(Icons.person, size: 38, color: AppColors.textSecondary)
-                      : null,
-                ),
-                Positioned(
-                  right: 0,
-                  bottom: 0,
-                  child: GestureDetector(
-                    onTap: _isUploading ? null : _pickAndUploadPhoto,
-                    child: Container(
-                      width: 26,
-                      height: 26,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
+            child: Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.inputFill,
+                border: Border.all(color: AppColors.divider, width: 1),
+                image: fotoUrl != null
+                    ? DecorationImage(image: NetworkImage(fotoUrl), fit: BoxFit.cover)
+                    : null,
+              ),
+              child: fotoUrl == null
+                  ? Center(
+                      child: Text(
+                        _getInitial(nama),
+                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 24, fontWeight: FontWeight.bold),
                       ),
-                      child: _isUploading
-                          ? const Padding(
-                              padding: EdgeInsets.all(5),
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                            )
-                          : const Icon(Icons.camera_alt, size: 13, color: Colors.white),
-                    ),
-                  ),
-                ),
-              ],
+                    )
+                  : null,
             ),
           ),
           const SizedBox(height: 12),
           Text(nama, textAlign: TextAlign.center, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(height: 2),
           Text(role, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+          if (fotoUrl == null) ...[
+            const SizedBox(height: 6),
+            const Text(
+              'Foto profil belum diatur. Hubungi admin untuk mengunggahnya.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
+            ),
+          ],
           const SizedBox(height: 24),
 
           const Divider(height: 1),
@@ -155,7 +107,7 @@ class _ProfileViewState extends State<ProfileView> {
           ListTile(
             leading: const Icon(Icons.logout, color: AppColors.error),
             title: const Text('Keluar', style: TextStyle(color: AppColors.error, fontSize: 14)),
-            onTap: _confirmLogout,
+            onTap: () => _confirmLogout(context),
           ),
           const Divider(height: 1),
 
