@@ -11,32 +11,26 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.8
 
-  # State management
   provider: ^6.1.2
-
-  # Networking
   http: ^1.2.2
 
-  # GPS & Keamanan Lokasi
   geolocator: ^13.0.1
   geocoding: ^3.0.0
 
-  # Keamanan Perangkat (root/jailbreak/emulator)
   safe_device: ^1.1.6
   permission_handler: ^11.3.1
 
-  # Kamera & Watermark
   image_picker: ^1.1.2
   image: ^4.2.0
   path_provider: ^2.1.4
 
-  # Share ke WhatsApp
   share_plus: ^10.1.2
   url_launcher: ^6.3.1
 
-  # Session & Formatting
   shared_preferences: ^2.3.2
   intl: ^0.19.0
+
+  flutter_background_service: ^5.0.5
 
 dev_dependencies:
   flutter_test:
