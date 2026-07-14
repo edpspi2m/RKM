@@ -46,6 +46,10 @@ class BackgroundLocationHandler {
   }
 
   static Future<bool> isRunning() => FlutterBackgroundService().isRunning();
+
+  /// Dengarkan event dari background isolate saat fake GPS terdeteksi.
+  static Stream<Map<String, dynamic>?> get onFakeGpsDetected =>
+      FlutterBackgroundService().on('fakeGpsDetected');
 }
 
 @pragma('vm:entry-point')
@@ -63,12 +67,34 @@ void _onStart(ServiceInstance service) async {
     currentUserId = data?['user_id'] as String? ?? '';
     locationTimer?.cancel();
 
-    locationTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
+    locationTimer = Timer.periodic(const Duration(seconds: 30), (timer) async {
       try {
         final pos = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high,
           timeLimit: const Duration(seconds: 10),
         );
+
+        // ====== DETEKSI FAKE GPS ======
+        // Android menandai posisi sebagai "mocked" jika berasal dari
+        // aplikasi fake GPS / mock location provider aktif.
+        if (pos.isMocked) {
+          timer.cancel();
+          locationTimer = null;
+
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('fake_gps_detected_$currentUserId', true);
+
+          if (service is AndroidServiceInstance) {
+            service.setForegroundNotificationInfo(
+              title: 'RKM — Tracking Dihentikan',
+              content: 'Lokasi palsu terdeteksi. Tracking otomatis dimatikan.',
+            );
+          }
+
+          service.invoke('fakeGpsDetected', {'user_id': currentUserId});
+          return;
+        }
+
         await _appendPoint(currentUserId, pos);
 
         final prefs = await SharedPreferences.getInstance();
