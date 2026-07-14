@@ -58,6 +58,15 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  // Dipakai setelah OTP diverifikasi — user sudah ter-autentikasi oleh OtpService.
+  Future<void> loginWithToken(UserModel user) async {
+    _user = user;
+    _apiClient.setToken(user.token);
+    await _persistSession(user);
+    _state = AuthState.success;
+    notifyListeners();
+  }
+
   Future<void> login(String username, String password) async {
     _state = AuthState.loading;
     _errorMessage = null;
@@ -78,16 +87,6 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
-
-  // --- TAMBAHAN METHOD BARU UNTUK OTP ---
-  Future<void> loginWithToken(UserModel user) async {
-    _user = user;
-    _apiClient.setToken(user.token);
-    await _persistSession(user);
-    _state = AuthState.success;
-    notifyListeners();
-  }
-  // --------------------------------------
 
   Future<void> _persistSession(UserModel user) async {
     final prefs = await SharedPreferences.getInstance();
