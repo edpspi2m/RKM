@@ -10,6 +10,7 @@ class ApiConstant {
   static const String otpVerify = "/otp_verify.php";
 
   static const String routeTrack = "/route_tracking.php";
+  static const String liveLocations = "/get_live_locations_app.php";
 
   static const Duration timeout = Duration(seconds: 15);
 }
