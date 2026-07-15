@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import '../../app/theme/app_colors.dart';
-import '../../core/widgets/fake_gps_dialog.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/route_tracking_provider.dart';
 
@@ -41,12 +40,10 @@ class _RouteTrackingViewState extends State<RouteTrackingView> {
     }
 
     await Permission.notification.request();
-
     final batteryStatus = await Permission.ignoreBatteryOptimizations.status;
     if (!batteryStatus.isGranted) {
       await Permission.ignoreBatteryOptimizations.request();
     }
-
     return true;
   }
 
@@ -69,17 +66,6 @@ class _RouteTrackingViewState extends State<RouteTrackingView> {
   Widget build(BuildContext context) {
     final provider = context.watch<RouteTrackingProvider>();
 
-    // Kalau background service mendeteksi fake GPS, tampilkan popup peringatan.
-    if (provider.fakeGpsDetected) {
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        await FakeGpsDialog.show(
-          context,
-          detail: 'Terdeteksi lokasi palsu (fake GPS) saat merekam rute. Tracking otomatis dihentikan demi menjaga keakuratan data.',
-        );
-        if (mounted) context.read<RouteTrackingProvider>().clearFakeGpsFlag();
-      });
-    }
-
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('Rekam Rute Perjalanan')),
@@ -98,14 +84,12 @@ class _RouteTrackingViewState extends State<RouteTrackingView> {
                   const SizedBox(height: 6),
                   Text(
                     provider.isTracking
-                        ? 'Titik lokasi tercatat otomatis tiap 30 detik, termasuk saat layar HP terkunci. Tracking otomatis berhenti jika terdeteksi fake GPS.'
+                        ? 'Titik lokasi tercatat otomatis tiap 30 detik, termasuk saat layar HP terkunci. Otomatis berhenti jika terdeteksi fake GPS.'
                         : 'Aktifkan untuk merekam jalur kunjungan Anda sepanjang hari.',
                     textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
                   ),
                   const SizedBox(height: 20),
-                  _isRequesting
-                      ? const CircularProgressIndicator()
-                      : Switch(value: provider.isTracking, activeColor: AppColors.action, onChanged: (_) => _toggle(provider)),
+                  _isRequesting ? const CircularProgressIndicator() : Switch(value: provider.isTracking, activeColor: AppColors.action, onChanged: (_) => _toggle(provider)),
                 ],
               ),
             ),
@@ -119,7 +103,7 @@ class _RouteTrackingViewState extends State<RouteTrackingView> {
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Saat mengaktifkan, HP meminta izin "Selalu Izinkan" lokasi dan pengecualian optimasi baterai — WAJIB disetujui agar rekaman tetap berjalan saat layar terkunci.',
+                      'Wajib setujui izin "Selalu Izinkan" lokasi dan pengecualian optimasi baterai agar rekaman tetap berjalan saat layar terkunci.',
                       style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
                     ),
                   ),
@@ -140,7 +124,7 @@ class _RouteTrackingViewState extends State<RouteTrackingView> {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(color: AppColors.inputFill, borderRadius: BorderRadius.circular(10)),
               child: const Text(
-                'Khusus HP Xiaomi/Oppo/Vivo: buka Pengaturan HP → Aplikasi → RKM → aktifkan "Autostart" atau "Jalankan di Latar Belakang". Tanpa ini, sistem HP tetap bisa mematikan tracking meski izin sudah diberikan.',
+                'Khusus HP Xiaomi/Oppo/Vivo: buka Pengaturan HP → Aplikasi → RKM → aktifkan "Autostart"/"Jalankan di Latar Belakang".',
                 style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
               ),
             ),
