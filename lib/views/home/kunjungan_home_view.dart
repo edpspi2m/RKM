@@ -83,11 +83,6 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                       style: const TextStyle(color: AppColors.action, fontSize: 18, fontWeight: FontWeight.bold)),
               ],
             ),
-            if (promo.tanggalMulai != null || promo.tanggalSelesai != null) ...[
-              const SizedBox(height: 10),
-              Text('Periode: ${promo.tanggalMulai ?? '-'} s/d ${promo.tanggalSelesai ?? '-'}',
-                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-            ],
           ],
         ),
       ),
@@ -121,10 +116,7 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
                 decoration: const BoxDecoration(
                   color: AppColors.primary,
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(24),
-                    bottomRight: Radius.circular(24),
-                  ),
+                  borderRadius: BorderRadius.only(bottomLeft: Radius.circular(24), bottomRight: Radius.circular(24)),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -143,15 +135,11 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                           Padding(
                             padding: const EdgeInsets.only(right: 8),
                             child: GestureDetector(
-                              onTap: () => Navigator.of(context).push(
-                                MaterialPageRoute(builder: (_) => const TrackingMapsView()),
-                              ),
+                              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrackingMapsView())),
                               child: Container(
-                                width: 44,
-                                height: 44,
+                                width: 44, height: 44,
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.15),
-                                  borderRadius: BorderRadius.circular(12),
+                                  color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(12),
                                   border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
                                 ),
                                 child: const Icon(Icons.map_outlined, color: Colors.white, size: 20),
@@ -161,15 +149,11 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                         Padding(
                           padding: const EdgeInsets.only(right: 8),
                           child: GestureDetector(
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => const RouteTrackingView()),
-                            ),
+                            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RouteTrackingView())),
                             child: Container(
-                              width: 44,
-                              height: 44,
+                              width: 44, height: 44,
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.15),
-                                borderRadius: BorderRadius.circular(12),
+                                color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(12),
                                 border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
                               ),
                               child: const Icon(Icons.route_outlined, color: Colors.white, size: 20),
@@ -177,27 +161,16 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                           ),
                         ),
                         GestureDetector(
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const ProfileView()),
-                          ),
+                          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProfileView())),
                           child: Container(
-                            width: 44,
-                            height: 44,
+                            width: 44, height: 44,
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(12),
+                              color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(12),
                               border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
-                              image: fotoProfil != null
-                                  ? DecorationImage(image: NetworkImage(fotoProfil), fit: BoxFit.cover)
-                                  : null,
+                              image: fotoProfil != null ? DecorationImage(image: NetworkImage(fotoProfil), fit: BoxFit.cover) : null,
                             ),
                             child: fotoProfil == null
-                                ? Center(
-                                    child: Text(
-                                      _getInitial(nama),
-                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
-                                    ),
-                                  )
+                                ? Center(child: Text(_getInitial(nama), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)))
                                 : null,
                           ),
                         ),
@@ -227,36 +200,19 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                               fit: StackFit.expand,
                               children: [
                                 if (promo.gambarUrl != null)
-                                  Image.network(promo.gambarUrl!, fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => Container(color: AppColors.primaryLight))
+                                  Image.network(promo.gambarUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: AppColors.primaryLight))
                                 else
-                                  const DecoratedBox(
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: [AppColors.primary, AppColors.action],
-                                        begin: Alignment.topLeft, end: Alignment.bottomRight,
-                                      ),
-                                    ),
-                                  ),
-                                DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [Colors.black.withOpacity(0.55), Colors.transparent],
-                                      begin: Alignment.bottomLeft, end: Alignment.topRight,
-                                    ),
-                                  ),
-                                ),
+                                  const DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(colors: [AppColors.primary, AppColors.action], begin: Alignment.topLeft, end: Alignment.bottomRight))),
+                                DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(colors: [Colors.black.withOpacity(0.55), Colors.transparent], begin: Alignment.bottomLeft, end: Alignment.topRight))),
                                 Positioned(
                                   left: 16, right: 16, bottom: 14,
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(promo.judul, maxLines: 1, overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                                      Text(promo.judul, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
                                       if (promo.hargaPromo != null) ...[
                                         const SizedBox(height: 2),
-                                        Text('Mulai ${_formatRupiah(promo.hargaPromo)}',
-                                            style: const TextStyle(color: Colors.white, fontSize: 12)),
+                                        Text('Mulai ${_formatRupiah(promo.hargaPromo)}', style: const TextStyle(color: Colors.white, fontSize: 12)),
                                       ],
                                     ],
                                   ),
@@ -275,12 +231,8 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                   children: List.generate(promoProvider.promoList.length, (i) {
                     return Container(
                       margin: const EdgeInsets.symmetric(horizontal: 3),
-                      width: _bannerIndex == i ? 18 : 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        color: _bannerIndex == i ? AppColors.primary : AppColors.divider,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
+                      width: _bannerIndex == i ? 18 : 6, height: 6,
+                      decoration: BoxDecoration(color: _bannerIndex == i ? AppColors.primary : AppColors.divider, borderRadius: BorderRadius.circular(4)),
                     );
                   }),
                 ),
@@ -290,16 +242,10 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: GestureDetector(
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const KunjunganFormView()),
-                  ),
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const KunjunganFormView())),
                   child: Container(
                     padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.divider),
-                    ),
+                    decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.divider)),
                     child: Row(
                       children: [
                         Container(
@@ -314,8 +260,7 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                             children: [
                               Text('Buat Laporan Kunjungan', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
                               SizedBox(height: 2),
-                              Text('Foto, lokasi, dan catatan otomatis tercatat',
-                                  style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+                              Text('Foto, lokasi, dan catatan otomatis tercatat', style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
                             ],
                           ),
                         ),
@@ -343,20 +288,14 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                       child: Container(
                         padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.divider),
-                        ),
+                        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.divider)),
                         child: Row(
                           children: [
                             const Icon(Icons.storefront_outlined, color: AppColors.primary, size: 20),
                             const SizedBox(width: 10),
                             Expanded(child: Text(m.nama, style: const TextStyle(fontSize: 13))),
                             TextButton(
-                              onPressed: () => Navigator.of(context).push(
-                                MaterialPageRoute(builder: (_) => KunjunganFormView(selectedMember: m)),
-                              ),
+                              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => KunjunganFormView(selectedMember: m))),
                               child: const Text('Kunjungi', style: TextStyle(fontSize: 12)),
                             ),
                           ],
@@ -368,17 +307,12 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Container(
                     padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.action.withOpacity(0.06),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    decoration: BoxDecoration(color: AppColors.action.withOpacity(0.06), borderRadius: BorderRadius.circular(12)),
                     child: const Row(
                       children: [
                         Icon(Icons.check_circle_outline, color: AppColors.action, size: 20),
                         SizedBox(width: 10),
-                        Expanded(
-                          child: Text('Semua member sudah dikunjungi hari ini.', style: TextStyle(fontSize: 13)),
-                        ),
+                        Expanded(child: Text('Semua member sudah dikunjungi hari ini.', style: TextStyle(fontSize: 13))),
                       ],
                     ),
                   ),
