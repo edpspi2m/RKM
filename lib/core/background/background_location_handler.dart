@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:geolocator/geolocator.dart';
@@ -47,9 +48,18 @@ class BackgroundLocationHandler {
 
   static Future<bool> isRunning() => FlutterBackgroundService().isRunning();
 
-  /// Dengarkan event dari background isolate saat fake GPS terdeteksi.
   static Stream<Map<String, dynamic>?> get onFakeGpsDetected =>
       FlutterBackgroundService().on('fakeGpsDetected');
+}
+
+double _distanceMeters(double lat1, double lng1, double lat2, double lng2) {
+  const r = 6371000.0;
+  final dLat = (lat2 - lat1) * pi / 180;
+  final dLng = (lng2 - lng1) * pi / 180;
+  final a = sin(dLat / 2) * sin(dLat / 2) +
+      cos(lat1 * pi / 180) * cos(lat2 * pi / 180) * sin(dLng / 2) * sin(dLng / 2);
+  final c = 2 * atan2(sqrt(a), sqrt(1 - a));
+  return r * c;
 }
 
 @pragma('vm:entry-point')
@@ -62,9 +72,11 @@ void _onStart(ServiceInstance service) async {
 
   Timer? locationTimer;
   String currentUserId = '';
+  Position? lastValidPosition;
 
   service.on('startTracking').listen((data) async {
     currentUserId = data?['user_id'] as String? ?? '';
+    lastValidPosition = null;
     locationTimer?.cancel();
 
     locationTimer = Timer.periodic(const Duration(seconds: 30), (timer) async {
@@ -74,20 +86,30 @@ void _onStart(ServiceInstance service) async {
           timeLimit: const Duration(seconds: 10),
         );
 
-        // ====== DETEKSI FAKE GPS ======
-        // Android menandai posisi sebagai "mocked" jika berasal dari
-        // aplikasi fake GPS / mock location provider aktif.
-        if (pos.isMocked) {
+        // ====== LAPISAN 1: flag mock location dari Android ======
+        bool isSuspicious = pos.isMocked;
+
+        // ====== LAPISAN 2: cek kecepatan gerak masuk akal atau tidak ======
+        // Kalau pindah >150 km dalam interval 30 detik = fisik tidak mungkin.
+        if (!isSuspicious && lastValidPosition != null) {
+          final distance = _distanceMeters(
+            lastValidPosition!.latitude, lastValidPosition!.longitude,
+            pos.latitude, pos.longitude,
+          );
+          const maxRealisticMeters = 150000; // 150 km dalam 30 detik
+          if (distance > maxRealisticMeters) {
+            isSuspicious = true;
+          }
+        }
+
+        if (isSuspicious) {
           timer.cancel();
           locationTimer = null;
-
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setBool('fake_gps_detected_$currentUserId', true);
 
           if (service is AndroidServiceInstance) {
             service.setForegroundNotificationInfo(
               title: 'RKM — Tracking Dihentikan',
-              content: 'Lokasi palsu terdeteksi. Tracking otomatis dimatikan.',
+              content: 'Lokasi mencurigakan terdeteksi. Tracking otomatis dimatikan.',
             );
           }
 
@@ -95,11 +117,12 @@ void _onStart(ServiceInstance service) async {
           return;
         }
 
+        lastValidPosition = pos;
         await _appendPoint(currentUserId, pos);
 
         final prefs = await SharedPreferences.getInstance();
         final buffer = prefs.getStringList('${_bufferKey}_$currentUserId') ?? [];
-        if (buffer.length >= 10) {
+        if (buffer.length >= 5) {
           await _flushBuffer(currentUserId, prefs);
         }
       } catch (_) {}
