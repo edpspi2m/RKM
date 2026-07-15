@@ -8,6 +8,7 @@ class FakeGpsDialog {
       barrierDismissible: false,
       builder: (ctx) => Dialog(
         backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 32),
         child: Container(
           padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
           decoration: BoxDecoration(
