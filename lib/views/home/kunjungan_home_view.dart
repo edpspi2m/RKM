@@ -7,7 +7,7 @@ import '../../providers/promo_provider.dart';
 import '../../data/models/promo_model.dart';
 import '../kunjungan/kunjungan_form_view.dart';
 import '../profile/profile_view.dart';
-import '../tracking/share_location_view.dart';
+import '../tracking/route_tracking_view.dart';
 import '../tracking/tracking_maps_view.dart';
 
 class KunjunganHomeView extends StatefulWidget {
@@ -162,7 +162,7 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                           padding: const EdgeInsets.only(right: 8),
                           child: GestureDetector(
                             onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => const ShareLocationView()),
+                              MaterialPageRoute(builder: (_) => const RouteTrackingView()),
                             ),
                             child: Container(
                               width: 44,
@@ -172,7 +172,7 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
                               ),
-                              child: const Icon(Icons.share_location_outlined, color: Colors.white, size: 20),
+                              child: const Icon(Icons.route_outlined, color: Colors.white, size: 20),
                             ),
                           ),
                         ),
