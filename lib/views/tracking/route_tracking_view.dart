@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import '../../app/theme/app_colors.dart';
+import '../../core/widgets/fake_gps_dialog.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/route_tracking_provider.dart';
 
@@ -33,7 +34,7 @@ class _RouteTrackingViewState extends State<RouteTrackingView> {
     if (!bgStatus.isGranted) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Izin lokasi "Selalu Izinkan" diperlukan untuk rekam rute berjalan.')),
+          const SnackBar(content: Text('Izin lokasi "Selalu Izinkan" diperlukan.')),
         );
       }
       return false;
@@ -54,9 +55,23 @@ class _RouteTrackingViewState extends State<RouteTrackingView> {
     if (!provider.isTracking) {
       setState(() => _isRequesting = true);
       final granted = await _ensurePermissions();
+      if (!granted) {
+        setState(() => _isRequesting = false);
+        return;
+      }
+      final success = await provider.startTracking(userId);
       setState(() => _isRequesting = false);
-      if (!granted) return;
-      await provider.startTracking(userId);
+
+      if (!success && mounted) {
+        if (provider.fakeGpsDetected) {
+          await FakeGpsDialog.show(context);
+          provider.clearFakeGpsFlag();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Gagal mengaktifkan, pastikan GPS menyala dan coba lagi.')),
+          );
+        }
+      }
     } else {
       await provider.stopTracking(userId);
     }
@@ -66,9 +81,16 @@ class _RouteTrackingViewState extends State<RouteTrackingView> {
   Widget build(BuildContext context) {
     final provider = context.watch<RouteTrackingProvider>();
 
+    if (provider.fakeGpsDetected) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        await FakeGpsDialog.show(context);
+        if (mounted) context.read<RouteTrackingProvider>().clearFakeGpsFlag();
+      });
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Rekam Rute Perjalanan')),
+      appBar: AppBar(title: const Text('Perjalanan')),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -80,16 +102,16 @@ class _RouteTrackingViewState extends State<RouteTrackingView> {
                 children: [
                   Icon(provider.isTracking ? Icons.route : Icons.route_outlined, size: 48, color: provider.isTracking ? AppColors.action : AppColors.textSecondary),
                   const SizedBox(height: 12),
-                  Text(provider.isTracking ? 'Rute sedang direkam' : 'Rute tidak direkam', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                  Text(provider.isTracking ? 'Rute Perjalanan Aktif' : 'Aktifkan Rute Perjalanan', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 6),
-                  Text(
-                    provider.isTracking
-                        ? 'Titik lokasi tercatat otomatis tiap 30 detik, termasuk saat layar HP terkunci. Otomatis berhenti jika terdeteksi fake GPS.'
-                        : 'Aktifkan untuk merekam jalur kunjungan Anda sepanjang hari.',
-                    textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                  const Text(
+                    'Titik lokasi realtime tercatat otomatis sepanjang perjalanan Anda.',
+                    textAlign: TextAlign.center, style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
                   ),
                   const SizedBox(height: 20),
-                  _isRequesting ? const CircularProgressIndicator() : Switch(value: provider.isTracking, activeColor: AppColors.action, onChanged: (_) => _toggle(provider)),
+                  (_isRequesting || provider.isValidating)
+                      ? const CircularProgressIndicator()
+                      : Switch(value: provider.isTracking, activeColor: AppColors.action, onChanged: (_) => _toggle(provider)),
                 ],
               ),
             ),
@@ -103,7 +125,7 @@ class _RouteTrackingViewState extends State<RouteTrackingView> {
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Wajib setujui izin "Selalu Izinkan" lokasi dan pengecualian optimasi baterai agar rekaman tetap berjalan saat layar terkunci.',
+                      'Wajib setujui izin "Selalu Izinkan" lokasi dan pengecualian optimasi baterai agar pencatatan tetap berjalan saat layar terkunci.',
                       style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
                     ),
                   ),
