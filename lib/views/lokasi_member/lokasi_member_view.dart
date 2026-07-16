@@ -44,7 +44,6 @@ class _LokasiMemberViewState extends State<LokasiMemberView> {
     }
 
     setState(() => _buildingRoute = true);
-
     final coords = members.map((m) => '${m.longitude},${m.latitude}').join(';');
     final url = 'https://router.project-osrm.org/route/v1/driving/$coords?overview=full&geometries=geojson';
 
@@ -134,14 +133,17 @@ class _LokasiMemberViewState extends State<LokasiMemberView> {
                       markers: members.map((m) {
                         return Marker(
                           point: LatLng(m.latitude!, m.longitude!),
-                          width: 40,
-                          height: 40,
+                          width: 36,
+                          height: 44,
+                          alignment: Alignment.topCenter,
                           child: GestureDetector(
                             onTap: () => _showMemberSheet(m),
+                            // Pin lokasi bergaya teardrop, sama seperti marker peta web.
                             child: Icon(
-                              m.sudahKunjungan ? Icons.check_circle : Icons.storefront,
+                              Icons.location_on,
                               color: m.sudahKunjungan ? AppColors.action : AppColors.error,
-                              size: 32,
+                              size: 40,
+                              shadows: const [Shadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))],
                             ),
                           ),
                         );
