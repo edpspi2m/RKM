@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:geolocator/geolocator.dart';
@@ -21,8 +20,8 @@ class BackgroundLocationHandler {
         autoStart: false,
         isForegroundMode: true,
         notificationChannelId: _notifChannelId,
-        initialNotificationTitle: 'RKM — Tracking Rute',
-        initialNotificationContent: 'Merekam perjalanan kunjungan...',
+        initialNotificationTitle: 'RKM — Perjalanan',
+        initialNotificationContent: 'Titik lokasi tercatat otomatis...',
         foregroundServiceNotificationId: _notifId,
       ),
       iosConfiguration: IosConfiguration(
@@ -52,16 +51,6 @@ class BackgroundLocationHandler {
       FlutterBackgroundService().on('fakeGpsDetected');
 }
 
-double _distanceMeters(double lat1, double lng1, double lat2, double lng2) {
-  const r = 6371000.0;
-  final dLat = (lat2 - lat1) * pi / 180;
-  final dLng = (lng2 - lng1) * pi / 180;
-  final a = sin(dLat / 2) * sin(dLat / 2) +
-      cos(lat1 * pi / 180) * cos(lat2 * pi / 180) * sin(dLng / 2) * sin(dLng / 2);
-  final c = 2 * atan2(sqrt(a), sqrt(1 - a));
-  return r * c;
-}
-
 @pragma('vm:entry-point')
 void _onStart(ServiceInstance service) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -72,61 +61,43 @@ void _onStart(ServiceInstance service) async {
 
   Timer? locationTimer;
   String currentUserId = '';
-  Position? lastValidPosition;
+
+  Future<void> captureOnce() async {
+    try {
+      final pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 10),
+      );
+
+      if (pos.isMocked) {
+        locationTimer?.cancel();
+        locationTimer = null;
+
+        if (service is AndroidServiceInstance) {
+          service.setForegroundNotificationInfo(
+            title: 'RKM — Dihentikan',
+            content: 'Lokasi mencurigakan terdeteksi.',
+          );
+        }
+        service.invoke('fakeGpsDetected', {'user_id': currentUserId});
+        return;
+      }
+
+      await _appendPoint(currentUserId, pos);
+      final prefs = await SharedPreferences.getInstance();
+      // Kirim setiap titik langsung (near-realtime), bukan menunggu buffer penuh.
+      await _flushBuffer(currentUserId, prefs);
+    } catch (_) {}
+  }
 
   service.on('startTracking').listen((data) async {
     currentUserId = data?['user_id'] as String? ?? '';
-    lastValidPosition = null;
     locationTimer?.cancel();
 
-    locationTimer = Timer.periodic(const Duration(seconds: 30), (timer) async {
-      try {
-        final pos = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high,
-          timeLimit: const Duration(seconds: 10),
-        );
+    // Cek instan begitu tracking dinyalakan — tidak menunggu tick pertama.
+    await captureOnce();
 
-        // ====== LAPISAN 1: flag mock location dari Android ======
-        bool isSuspicious = pos.isMocked;
-
-        // ====== LAPISAN 2: cek kecepatan gerak masuk akal atau tidak ======
-        // Kalau pindah >150 km dalam interval 30 detik = fisik tidak mungkin.
-        if (!isSuspicious && lastValidPosition != null) {
-          final distance = _distanceMeters(
-            lastValidPosition!.latitude, lastValidPosition!.longitude,
-            pos.latitude, pos.longitude,
-          );
-          const maxRealisticMeters = 150000; // 150 km dalam 30 detik
-          if (distance > maxRealisticMeters) {
-            isSuspicious = true;
-          }
-        }
-
-        if (isSuspicious) {
-          timer.cancel();
-          locationTimer = null;
-
-          if (service is AndroidServiceInstance) {
-            service.setForegroundNotificationInfo(
-              title: 'RKM — Tracking Dihentikan',
-              content: 'Lokasi mencurigakan terdeteksi. Tracking otomatis dimatikan.',
-            );
-          }
-
-          service.invoke('fakeGpsDetected', {'user_id': currentUserId});
-          return;
-        }
-
-        lastValidPosition = pos;
-        await _appendPoint(currentUserId, pos);
-
-        final prefs = await SharedPreferences.getInstance();
-        final buffer = prefs.getStringList('${_bufferKey}_$currentUserId') ?? [];
-        if (buffer.length >= 5) {
-          await _flushBuffer(currentUserId, prefs);
-        }
-      } catch (_) {}
-    });
+    locationTimer = Timer.periodic(const Duration(seconds: 15), (_) => captureOnce());
   });
 
   service.on('stopTracking').listen((data) async {
