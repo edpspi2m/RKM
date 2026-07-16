@@ -10,6 +10,7 @@ import '../data/services/member_service.dart';
 import '../data/services/riwayat_service.dart';
 import '../data/services/location_share_service.dart';
 import '../data/services/otp_service.dart';
+import '../data/services/route_tracking_service.dart';
 import '../data/repositories/auth_repository.dart';
 import '../data/repositories/kunjungan_repository.dart';
 import '../providers/auth_provider.dart';
@@ -20,6 +21,7 @@ import '../providers/member_provider.dart';
 import '../providers/riwayat_provider.dart';
 import '../providers/location_share_provider.dart';
 import '../providers/otp_provider.dart';
+import '../providers/route_tracking_provider.dart';
 import '../views/login/login_view.dart';
 import '../views/main_navigation_view.dart';
 
@@ -36,6 +38,7 @@ class RkmApp extends StatelessWidget {
     final riwayatService = RiwayatService(apiClient);
     final locationShareService = LocationShareService(apiClient);
     final otpService = OtpService(apiClient);
+    final routeTrackingService = RouteTrackingService(apiClient);
 
     return MultiProvider(
       providers: [
@@ -57,6 +60,7 @@ class RkmApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => RiwayatProvider(riwayatService)),
         ChangeNotifierProvider(create: (_) => LocationShareProvider(locationShareService)),
         ChangeNotifierProvider(create: (_) => OtpProvider(otpService)),
+        ChangeNotifierProvider(create: (_) => RouteTrackingProvider(routeTrackingService)),
       ],
       child: MaterialApp(
         title: 'RKM App',
