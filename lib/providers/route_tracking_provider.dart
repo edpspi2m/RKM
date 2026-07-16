@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/background/background_location_handler.dart';
 import '../data/models/route_point_model.dart';
@@ -20,34 +21,52 @@ class RouteTrackingProvider extends ChangeNotifier {
 
   bool _isTracking = false;
   bool _fakeGpsDetected = false;
+  bool _isValidating = false;
 
   bool get isTracking => _isTracking;
   bool get fakeGpsDetected => _fakeGpsDetected;
+  bool get isValidating => _isValidating;
 
   Future<void> checkInitialState() async {
     _isTracking = await BackgroundLocationHandler.isRunning();
     notifyListeners();
   }
 
-  Future<void> startTracking(String userId) async {
-    _fakeGpsDetected = false;
+  /// Validasi instan sebelum mengaktifkan tracking — supaya kalau fake GPS
+  /// sudah aktif SEBELUM tombol ditekan, langsung tertolak tanpa jeda.
+  Future<bool> startTracking(String userId) async {
+    _isValidating = true;
+    notifyListeners();
+
+    try {
+      final pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 10),
+      );
+
+      if (pos.isMocked) {
+        _isValidating = false;
+        _fakeGpsDetected = true;
+        notifyListeners();
+        return false;
+      }
+    } catch (_) {
+      _isValidating = false;
+      notifyListeners();
+      return false;
+    }
+
     await BackgroundLocationHandler.start(userId);
     _isTracking = true;
+    _isValidating = false;
     notifyListeners();
+    return true;
   }
 
   Future<void> stopTracking(String userId) async {
     await BackgroundLocationHandler.stop(userId);
     _isTracking = false;
     notifyListeners();
-  }
-
-  Future<void> toggle(String userId) async {
-    if (_isTracking) {
-      await stopTracking(userId);
-    } else {
-      await startTracking(userId);
-    }
   }
 
   void clearFakeGpsFlag() {
@@ -62,9 +81,7 @@ class RouteTrackingProvider extends ChangeNotifier {
     if (raw.isEmpty) return;
 
     try {
-      final points = raw
-          .map((e) => RoutePointModel.fromJson(jsonDecode(e) as Map<String, dynamic>))
-          .toList();
+      final points = raw.map((e) => RoutePointModel.fromJson(jsonDecode(e) as Map<String, dynamic>)).toList();
       await _service.submitPoints(userId: userId, points: points);
       await prefs.remove(key);
     } catch (_) {}
