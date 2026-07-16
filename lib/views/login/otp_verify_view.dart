@@ -27,16 +27,28 @@ class _OtpVerifyViewState extends State<OtpVerifyView> {
     super.dispose();
   }
 
+  /// PENTING: pemindahan fokus DITUNDA ke frame berikutnya
+  /// (bukan langsung dalam onChanged), supaya Flutter sempat
+  /// menggambar digit yang baru diketik ke layar sebelum
+  /// kotak berpindah fokus. Ini akar penyebab "angka tidak terlihat".
   void _onDigitChanged(int index, String value) {
     if (value.isNotEmpty) {
       if (index < 5) {
-        _focusNodes[index + 1].requestFocus();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _focusNodes[index + 1].requestFocus();
+        });
       } else {
-        _focusNodes[index].unfocus();
-        _handleVerify();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _focusNodes[index].unfocus();
+            _handleVerify();
+          }
+        });
       }
     } else if (value.isEmpty && index > 0) {
-      _focusNodes[index - 1].requestFocus();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _focusNodes[index - 1].requestFocus();
+      });
     }
   }
 
@@ -97,7 +109,7 @@ class _OtpVerifyViewState extends State<OtpVerifyView> {
               ),
               const SizedBox(height: 20),
               const Text('Masukkan Kode OTP', textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A))),
               const SizedBox(height: 8),
               Text('Kode 6 digit untuk "${widget.username}" dapat dilihat admin.',
                   textAlign: TextAlign.center, style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
@@ -110,12 +122,13 @@ class _OtpVerifyViewState extends State<OtpVerifyView> {
                     child: TextField(
                       controller: _controllers[index],
                       focusNode: _focusNodes[index],
+                      autofocus: index == 0,
                       textAlign: TextAlign.center,
                       keyboardType: TextInputType.number,
                       maxLength: 1,
-                      obscureText: false,
-                      enableInteractiveSelection: true,
+                      showCursor: true,
                       cursorColor: AppColors.primary,
+                      enableInteractiveSelection: false,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       style: const TextStyle(
                         fontSize: 22,
