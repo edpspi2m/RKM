@@ -12,4 +12,7 @@ class GpsLocationModel {
     required this.capturedAt,
     this.accuracy,
   });
+
+  String get coordinateText =>
+      '${latitude.toStringAsFixed(6)}, ${longitude.toStringAsFixed(6)}';
 }
