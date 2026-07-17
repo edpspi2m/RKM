@@ -62,6 +62,22 @@ void _onStart(ServiceInstance service) async {
   Timer? locationTimer;
   String currentUserId = '';
 
+  Future<void> stopEverything({required bool fakeGps}) async {
+    locationTimer?.cancel();
+    locationTimer = null;
+
+    final prefs = await SharedPreferences.getInstance();
+    await _flushBuffer(currentUserId, prefs);
+
+    if (fakeGps) {
+      service.invoke('fakeGpsDetected', {'user_id': currentUserId});
+    }
+
+    // KUNCI FIX: service harus benar-benar dimatikan, bukan cuma timer-nya.
+    // Kalau tidak, isRunning() tetap true dan toggle di UI "hidup lagi sendiri".
+    service.stopSelf();
+  }
+
   Future<void> captureOnce() async {
     try {
       final pos = await Geolocator.getCurrentPosition(
@@ -70,22 +86,15 @@ void _onStart(ServiceInstance service) async {
       );
 
       if (pos.isMocked) {
-        locationTimer?.cancel();
-        locationTimer = null;
-
         if (service is AndroidServiceInstance) {
-          service.setForegroundNotificationInfo(
-            title: 'RKM — Dihentikan',
-            content: 'Lokasi mencurigakan terdeteksi.',
-          );
+          service.setForegroundNotificationInfo(title: 'RKM — Dihentikan', content: 'Lokasi mencurigakan terdeteksi.');
         }
-        service.invoke('fakeGpsDetected', {'user_id': currentUserId});
+        await stopEverything(fakeGps: true);
         return;
       }
 
       await _appendPoint(currentUserId, pos);
       final prefs = await SharedPreferences.getInstance();
-      // Kirim setiap titik langsung (near-realtime), bukan menunggu buffer penuh.
       await _flushBuffer(currentUserId, prefs);
     } catch (_) {}
   }
@@ -93,22 +102,12 @@ void _onStart(ServiceInstance service) async {
   service.on('startTracking').listen((data) async {
     currentUserId = data?['user_id'] as String? ?? '';
     locationTimer?.cancel();
-
-    // Cek instan begitu tracking dinyalakan — tidak menunggu tick pertama.
     await captureOnce();
-
     locationTimer = Timer.periodic(const Duration(seconds: 15), (_) => captureOnce());
   });
 
   service.on('stopTracking').listen((data) async {
-    locationTimer?.cancel();
-    locationTimer = null;
-
-    final userId = data?['user_id'] as String? ?? currentUserId;
-    final prefs = await SharedPreferences.getInstance();
-    await _flushBuffer(userId, prefs);
-
-    service.stopSelf();
+    await stopEverything(fakeGps: false);
   });
 }
 
@@ -116,12 +115,7 @@ Future<void> _appendPoint(String userId, Position pos) async {
   final prefs = await SharedPreferences.getInstance();
   final key = '${_bufferKey}_$userId';
   final buffer = prefs.getStringList(key) ?? [];
-  buffer.add(jsonEncode({
-    'lat': pos.latitude,
-    'lng': pos.longitude,
-    'acc': pos.accuracy,
-    'ts': DateTime.now().toIso8601String(),
-  }));
+  buffer.add(jsonEncode({'lat': pos.latitude, 'lng': pos.longitude, 'acc': pos.accuracy, 'ts': DateTime.now().toIso8601String()}));
   if (buffer.length > 500) buffer.removeRange(0, buffer.length - 500);
   await prefs.setStringList(key, buffer);
 }
@@ -138,14 +132,10 @@ Future<void> _flushBuffer(String userId, SharedPreferences prefs) async {
     final response = await http
         .post(
           Uri.parse('${ApiConstant.baseUrl}${ApiConstant.routeTrack}'),
-          headers: {
-            'Content-Type': 'application/json',
-            if (token.isNotEmpty) 'Authorization': 'Bearer $token',
-          },
+          headers: {'Content-Type': 'application/json', if (token.isNotEmpty) 'Authorization': 'Bearer $token'},
           body: jsonEncode({'user_id': userId, 'points': points}),
         )
         .timeout(const Duration(seconds: 10));
-
     if (response.statusCode >= 200 && response.statusCode < 300) {
       await prefs.remove(key);
     }
