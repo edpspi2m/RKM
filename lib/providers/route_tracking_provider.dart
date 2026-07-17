@@ -32,18 +32,12 @@ class RouteTrackingProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Validasi instan sebelum mengaktifkan tracking — supaya kalau fake GPS
-  /// sudah aktif SEBELUM tombol ditekan, langsung tertolak tanpa jeda.
   Future<bool> startTracking(String userId) async {
     _isValidating = true;
     notifyListeners();
 
     try {
-      final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 10),
-      );
-
+      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high, timeLimit: const Duration(seconds: 10));
       if (pos.isMocked) {
         _isValidating = false;
         _fakeGpsDetected = true;
@@ -79,7 +73,6 @@ class RouteTrackingProvider extends ChangeNotifier {
     final key = '${_bufferKey}_$userId';
     final raw = prefs.getStringList(key) ?? [];
     if (raw.isEmpty) return;
-
     try {
       final points = raw.map((e) => RoutePointModel.fromJson(jsonDecode(e) as Map<String, dynamic>)).toList();
       await _service.submitPoints(userId: userId, points: points);
