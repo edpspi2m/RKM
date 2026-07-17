@@ -29,6 +29,31 @@ class _RiwayatViewState extends State<RiwayatView> {
     return '${date.day} ${bulan[date.month]} ${date.year}';
   }
 
+  Widget _statusBadge(Map<String, dynamic> item) {
+    final isNotGet = item['status_kunjungan'] == 'not_get';
+    final approval = item['status_approval'] ?? 'pending';
+
+    if (isNotGet) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(color: AppColors.error.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+        child: const Text('Not Get', style: TextStyle(fontSize: 10, color: AppColors.error, fontWeight: FontWeight.bold)),
+      );
+    }
+
+    final map = {
+      'pending': ('Menunggu', AppColors.warning),
+      'approved': ('Disetujui', AppColors.action),
+      'rejected': ('Ditolak', AppColors.error),
+    };
+    final (label, color) = map[approval] ?? ('Menunggu', AppColors.warning);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+      child: Text(label, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.bold)),
+    );
+  }
+
   void _showDetail(Map<String, dynamic> item) {
     showModalBottomSheet(
       context: context,
@@ -42,12 +67,12 @@ class _RiwayatViewState extends State<RiwayatView> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (item['foto_url'] != null)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: Image.network(item['foto_url'], height: 220, width: double.infinity, fit: BoxFit.cover),
-              ),
+              ClipRRect(borderRadius: BorderRadius.circular(14), child: Image.network(item['foto_url'], height: 220, width: double.infinity, fit: BoxFit.cover)),
             const SizedBox(height: 16),
-            Text(item['member'] ?? '-', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Row(children: [
+              Expanded(child: Text(item['member'] ?? '-', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+              _statusBadge(item),
+            ]),
             const SizedBox(height: 6),
             Text(item['catatan'] ?? '-', style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
             const SizedBox(height: 10),
@@ -83,15 +108,10 @@ class _RiwayatViewState extends State<RiwayatView> {
       body: RefreshIndicator(
         onRefresh: () => context.read<RiwayatProvider>().load(userId),
         child: Builder(builder: (_) {
-          if (provider.state == RiwayatState.loading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (provider.state == RiwayatState.error) {
-            return Center(child: Text(provider.errorMessage ?? 'Gagal memuat riwayat'));
-          }
-          if (provider.grouped.isEmpty) {
-            return const Center(child: Text('Belum ada riwayat kunjungan'));
-          }
+          if (provider.state == RiwayatState.loading) return const Center(child: CircularProgressIndicator());
+          if (provider.state == RiwayatState.error) return Center(child: Text(provider.errorMessage ?? 'Gagal memuat riwayat'));
+          if (provider.grouped.isEmpty) return const Center(child: Text('Belum ada riwayat kunjungan'));
+
           return ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: provider.grouped.length,
@@ -105,35 +125,24 @@ class _RiwayatViewState extends State<RiwayatView> {
                 children: [
                   Padding(
                     padding: const EdgeInsets.only(top: 12, bottom: 8),
-                    child: Text(_formatTanggal(tanggal),
-                        style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryDark, fontSize: 14)),
+                    child: Text(_formatTanggal(tanggal), style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryDark, fontSize: 14)),
                   ),
                   ...items.map((item) => GestureDetector(
                         onTap: () => _showDetail(item),
                         child: Container(
                           margin: const EdgeInsets.only(bottom: 8),
                           padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: AppColors.surface,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppColors.divider),
-                          ),
+                          decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.divider)),
                           child: Row(
                             children: [
                               if (item['foto_url'] != null)
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(8),
                                   child: Image.network(item['foto_url'], width: 48, height: 48, fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => Container(
-                                          width: 48, height: 48, color: AppColors.inputFill,
-                                          child: const Icon(Icons.image_not_supported_outlined, size: 20))),
+                                      errorBuilder: (_, __, ___) => Container(width: 48, height: 48, color: AppColors.inputFill, child: const Icon(Icons.image_not_supported_outlined, size: 20))),
                                 )
                               else
-                                Container(
-                                  width: 48, height: 48,
-                                  decoration: BoxDecoration(color: AppColors.action.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                                  child: const Icon(Icons.check_circle_outline, color: AppColors.action),
-                                ),
+                                Container(width: 48, height: 48, decoration: BoxDecoration(color: AppColors.action.withOpacity(0.1), borderRadius: BorderRadius.circular(8)), child: const Icon(Icons.check_circle_outline, color: AppColors.action)),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
@@ -141,12 +150,11 @@ class _RiwayatViewState extends State<RiwayatView> {
                                   children: [
                                     Text(item['member'] ?? '-', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                                     const SizedBox(height: 2),
-                                    Text(item['catatan'] ?? '-', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
-                                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                                    Text(item['catatan'] ?? '-', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
                                   ],
                                 ),
                               ),
-                              const Icon(Icons.chevron_right, color: AppColors.textSecondary, size: 18),
+                              _statusBadge(item),
                             ],
                           ),
                         ),
