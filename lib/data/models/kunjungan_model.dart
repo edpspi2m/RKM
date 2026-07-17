@@ -5,12 +5,14 @@ class KunjunganModel {
   final String member;
   final String catatan;
   final GpsLocationModel lokasi;
+  final String statusKunjungan;
 
   const KunjunganModel({
     required this.userId,
     required this.member,
     required this.catatan,
     required this.lokasi,
+    this.statusKunjungan = 'berhasil',
   });
 
   Map<String, String> toFields() => {
@@ -20,5 +22,6 @@ class KunjunganModel {
         'latitude': lokasi.latitude.toString(),
         'longitude': lokasi.longitude.toString(),
         'timestamp': lokasi.capturedAt.toIso8601String(),
+        'status_kunjungan': statusKunjungan,
       };
 }
