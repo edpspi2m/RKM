@@ -62,7 +62,7 @@ void _onStart(ServiceInstance service) async {
   Timer? locationTimer;
   String currentUserId = '';
 
-  Future<void> stopEverything({required bool fakeGps}) async {
+  Future<void> stopEverything({required bool fakeGps, double? fakeLat, double? fakeLng}) async {
     locationTimer?.cancel();
     locationTimer = null;
 
@@ -71,10 +71,15 @@ void _onStart(ServiceInstance service) async {
 
     if (fakeGps) {
       service.invoke('fakeGpsDetected', {'user_id': currentUserId});
+      try {
+        await http.post(
+          Uri.parse('${ApiConstant.baseUrl}/report_fake_gps.php'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'user_id': currentUserId, 'latitude': fakeLat, 'longitude': fakeLng}),
+        ).timeout(const Duration(seconds: 8));
+      } catch (_) {}
     }
 
-    // KUNCI FIX: service harus benar-benar dimatikan, bukan cuma timer-nya.
-    // Kalau tidak, isRunning() tetap true dan toggle di UI "hidup lagi sendiri".
     service.stopSelf();
   }
 
@@ -89,7 +94,7 @@ void _onStart(ServiceInstance service) async {
         if (service is AndroidServiceInstance) {
           service.setForegroundNotificationInfo(title: 'RKM — Dihentikan', content: 'Lokasi mencurigakan terdeteksi.');
         }
-        await stopEverything(fakeGps: true);
+        await stopEverything(fakeGps: true, fakeLat: pos.latitude, fakeLng: pos.longitude);
         return;
       }
 
