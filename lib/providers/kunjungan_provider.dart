@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 import '../data/models/gps_location_model.dart';
 import '../data/models/kunjungan_model.dart';
 import '../data/repositories/kunjungan_repository.dart';
-import '../data/services/whatsapp_share_service.dart';
 
 typedef AppFile = dynamic;
 
@@ -11,13 +10,8 @@ enum SubmitState { idle, processingPhoto, uploading, success, error }
 
 class KunjunganProvider extends ChangeNotifier {
   final KunjunganRepository _repository;
-  final WhatsappShareService _whatsappShareService;
 
-  KunjunganProvider({
-    required KunjunganRepository repository,
-    WhatsappShareService? whatsappShareService,
-  })  : _repository = repository,
-        _whatsappShareService = whatsappShareService ?? WhatsappShareService();
+  KunjunganProvider({required KunjunganRepository repository}) : _repository = repository;
 
   SubmitState _state = SubmitState.idle;
   String? _errorMessage;
@@ -28,7 +22,6 @@ class KunjunganProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   AppFile? get fotoWatermark => _fotoWatermark;
   GpsLocationModel? get lokasi => _lokasi;
-  WhatsappShareService get whatsappShareService => _whatsappShareService;
 
   Future<bool> prosesFoto(AppFile fotoAsli) async {
     _state = SubmitState.processingPhoto;
@@ -38,8 +31,7 @@ class KunjunganProvider extends ChangeNotifier {
     try {
       final hasil = await _repository.prosesFoto(fotoAsli).timeout(
         const Duration(seconds: 20),
-        onTimeout: () => throw Exception(
-            'Proses GPS & foto terlalu lama. Pastikan GPS aktif dan sinyal cukup, lalu coba lagi.'),
+        onTimeout: () => throw Exception('GPS tidak valid, coba lagi.'),
       );
       _fotoWatermark = hasil.fotoFinal;
       _lokasi = hasil.lokasi;
@@ -58,6 +50,7 @@ class KunjunganProvider extends ChangeNotifier {
     required String userId,
     required String member,
     required String catatan,
+    String statusKunjungan = 'berhasil',
   }) async {
     if (_fotoWatermark == null || _lokasi == null) {
       _errorMessage = 'Foto dan lokasi belum diproses.';
@@ -74,15 +67,12 @@ class KunjunganProvider extends ChangeNotifier {
         member: member,
         catatan: catatan,
         lokasi: _lokasi!,
+        statusKunjungan: statusKunjungan,
       );
 
-      await _repository.kirimKunjungan(
-        kunjungan: kunjungan,
-        fotoWatermark: _fotoWatermark!,
-      );
+      await _repository.kirimKunjungan(kunjungan: kunjungan, fotoWatermark: _fotoWatermark!);
 
       _state = SubmitState.success;
-      notifyListeners();
       return true;
     } catch (e) {
       _state = SubmitState.error;
