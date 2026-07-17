@@ -6,6 +6,7 @@ import '../providers/route_tracking_provider.dart';
 import 'home/kunjungan_home_view.dart';
 import 'member/member_view.dart';
 import 'lokasi_member/lokasi_member_view.dart';
+import 'lokasi_member/not_get_map_view.dart';
 import 'riwayat/riwayat_view.dart';
 
 class MainNavigationView extends StatefulWidget {
@@ -22,20 +23,16 @@ class _MainNavigationViewState extends State<MainNavigationView> {
     KunjunganHomeView(),
     MemberView(),
     LokasiMemberView(),
+    NotGetMapView(),
     RiwayatView(),
   ];
 
   @override
   Widget build(BuildContext context) {
-    // Dengarkan fake GPS di level global, supaya popup muncul
-    // di tab mana pun sedang dibuka, bukan cuma di halaman tracking.
     final routeProvider = context.watch<RouteTrackingProvider>();
     if (routeProvider.fakeGpsDetected) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
-        await FakeGpsDialog.show(
-          context,
-          detail: 'Terdeteksi lokasi mencurigakan (fake GPS) saat merekam rute. Tracking otomatis dihentikan.',
-        );
+        await FakeGpsDialog.show(context);
         if (mounted) context.read<RouteTrackingProvider>().clearFakeGpsFlag();
       });
     }
@@ -51,12 +48,13 @@ class _MainNavigationViewState extends State<MainNavigationView> {
         type: BottomNavigationBarType.fixed,
         backgroundColor: AppColors.surface,
         elevation: 8,
-        selectedFontSize: 11,
-        unselectedFontSize: 11,
+        selectedFontSize: 10,
+        unselectedFontSize: 10,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.storefront_outlined), activeIcon: Icon(Icons.storefront), label: 'Kunjungan'),
           BottomNavigationBarItem(icon: Icon(Icons.people_outline), activeIcon: Icon(Icons.people), label: 'Member'),
-          BottomNavigationBarItem(icon: Icon(Icons.map_outlined), activeIcon: Icon(Icons.map), label: 'Lokasi Member'),
+          BottomNavigationBarItem(icon: Icon(Icons.map_outlined), activeIcon: Icon(Icons.map), label: 'Lokasi'),
+          BottomNavigationBarItem(icon: Icon(Icons.cancel_outlined), activeIcon: Icon(Icons.cancel), label: 'Not Get'),
           BottomNavigationBarItem(icon: Icon(Icons.history_outlined), activeIcon: Icon(Icons.history), label: 'Riwayat'),
         ],
       ),
