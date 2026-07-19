@@ -1,160 +1,283 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../app/theme/app_colors.dart';
 import '../../core/network/api_client.dart';
+import '../../data/models/member_model.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/member_provider.dart';
 
-class NotGetMapView extends StatefulWidget {
-  const NotGetMapView({super.key});
+const _kBlue = Color(0xFF1E88E5);
+
+class LokasiMemberView extends StatefulWidget {
+  const LokasiMemberView({super.key});
 
   @override
-  State<NotGetMapView> createState() => _NotGetMapViewState();
+  State<LokasiMemberView> createState() => _LokasiMemberViewState();
 }
 
-class _NotGetMapViewState extends State<NotGetMapView> with SingleTickerProviderStateMixin {
-  List<Map<String, dynamic>> _data = [];
-  bool _loading = true;
-  String? _error;
-  late TabController _tabController;
+class _LokasiMemberViewState extends State<LokasiMemberView> {
+  List<LatLng>? _routePoints;
+  bool _buildingRoute = false;
+  MemberModel? _navigatingTo;
+  double? _distanceMeters;
+  Timer? _distanceTimer;
+  final MapController _mapController = MapController();
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _load();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final userId = context.read<AuthProvider>().user?.id ?? '';
+      context.read<MemberProvider>().load(userId);
+    });
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _distanceTimer?.cancel();
     super.dispose();
   }
 
-  Future<void> _load() async {
-    setState(() { _loading = true; _error = null; });
+  List<MemberModel> get _membersWithLokasi {
+    return context.watch<MemberProvider>().members.where((m) => m.latitude != null && m.longitude != null).toList();
+  }
+
+  Future<void> _startNavigation(MemberModel m) async {
+    setState(() { _buildingRoute = true; _navigatingTo = m; });
     try {
-      final apiClient = context.read<ApiClient>();
-      final response = await apiClient.post('/not_get_list.php', body: {});
-      final list = (response['data'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
-      if (mounted) setState(() { _data = list; _loading = false; });
+      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high, timeLimit: const Duration(seconds: 10));
+      final url = 'https://router.project-osrm.org/route/v1/driving/${pos.longitude},${pos.latitude};${m.longitude},${m.latitude}?overview=full&geometries=geojson';
+      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
+      final json = jsonDecode(response.body);
+      final coordsList = json['routes'][0]['geometry']['coordinates'] as List;
+      final points = coordsList.map((c) => LatLng((c[1] as num).toDouble(), (c[0] as num).toDouble())).toList();
+
+      setState(() {
+        _routePoints = points;
+        _buildingRoute = false;
+        _distanceMeters = Geolocator.distanceBetween(pos.latitude, pos.longitude, m.latitude!, m.longitude!);
+      });
+
+      _mapController.fitCamera(CameraFit.coordinates(coordinates: points, padding: const EdgeInsets.all(60)));
+
+      _distanceTimer?.cancel();
+      _distanceTimer = Timer.periodic(const Duration(seconds: 10), (_) async {
+        try {
+          final p = await Geolocator.getCurrentPosition();
+          if (mounted && _navigatingTo != null) {
+            setState(() {
+              _distanceMeters = Geolocator.distanceBetween(p.latitude, p.longitude, _navigatingTo!.latitude!, _navigatingTo!.longitude!);
+            });
+          }
+        } catch (_) {}
+      });
     } catch (e) {
-      if (mounted) setState(() { _loading = false; _error = e.toString(); });
+      setState(() { _buildingRoute = false; _navigatingTo = null; });
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gagal membuat rute. Pastikan GPS aktif.')));
     }
   }
 
-  List<Map<String, dynamic>> get _withLokasi =>
-      _data.where((d) => d['latitude'] != null && d['longitude'] != null).toList();
+  void _cancelNavigation() {
+    _distanceTimer?.cancel();
+    setState(() { _navigatingTo = null; _routePoints = null; _distanceMeters = null; });
+  }
 
-  void _showDetail(Map<String, dynamic> item) {
+  Future<void> _openGoogleMaps(MemberModel m) async {
+    final uri = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=${m.latitude},${m.longitude}');
+    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _showVisitDetail(MemberModel m) async {
+    showDialog(context: context, barrierDismissible: false, builder: (_) => const Center(child: CircularProgressIndicator()));
+    List<Map<String, dynamic>> visits = [];
+    int total = 0;
+    try {
+      final apiClient = context.read<ApiClient>();
+      final response = await apiClient.post('/member_visit_detail.php', body: {'member': m.nama});
+      visits = (response['data'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+      total = response['total_kunjungan'] as int? ?? visits.length;
+    } catch (_) {}
+    if (!mounted) return;
+    Navigator.of(context).pop();
+
+    showModalBottomSheet(
+      context: context, isScrollControlled: true,
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.6, maxChildSize: 0.9, expand: false,
+        builder: (context, scrollController) => Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(m.nama, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              Text('Total kunjungan: $total kali', style: const TextStyle(color: _kBlue, fontSize: 13, fontWeight: FontWeight.w600)),
+              const Divider(height: 24),
+              Expanded(
+                child: visits.isEmpty
+                    ? const Center(child: Text('Belum pernah dikunjungi.'))
+                    : ListView.builder(
+                        controller: scrollController,
+                        itemCount: visits.length,
+                        itemBuilder: (context, index) {
+                          final v = visits[index];
+                          final isNotGet = v['status_kunjungan'] == 'not_get';
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(color: AppColors.inputFill, borderRadius: BorderRadius.circular(10)),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(children: [
+                                  Icon(isNotGet ? Icons.cancel : Icons.check_circle, size: 14, color: isNotGet ? AppColors.error : AppColors.action),
+                                  const SizedBox(width: 6),
+                                  Text(v['waktu'] ?? '-', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                ]),
+                                const SizedBox(height: 4),
+                                Text(v['catatan']?.toString().isNotEmpty == true ? v['catatan'] : '-', style: const TextStyle(fontSize: 12)),
+                                const SizedBox(height: 2),
+                                Text('Sales: ${v['nama_sales'] ?? '-'}', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showMemberSheet(MemberModel m) {
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true,
       builder: (ctx) => Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (item['foto_url'] != null)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(item['foto_url'], height: 180, width: double.infinity, fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(height: 180, color: AppColors.inputFill)),
-              ),
-            const SizedBox(height: 14),
-            Text(item['member'] ?? '-', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(m.nama, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
-            Text('${item['kecamatan'] ?? '-'}, ${item['kota'] ?? '-'}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-            const SizedBox(height: 10),
-            Text('Alasan: ${item['catatan']?.toString().isNotEmpty == true ? item['catatan'] : '-'}', style: const TextStyle(fontSize: 13)),
-            const SizedBox(height: 6),
-            Text('Sales: ${item['nama_sales'] ?? '-'} • ${item['waktu']}', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+            Text('${m.kodeMember} • ${m.kota ?? '-'}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () { Navigator.of(ctx).pop(); _startNavigation(m); },
+                icon: const Icon(Icons.navigation, size: 18),
+                label: const Text('Rute ke Lokasi Ini'),
+                style: ElevatedButton.styleFrom(backgroundColor: _kBlue, foregroundColor: Colors.white),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () { Navigator.of(ctx).pop(); _showVisitDetail(m); },
+                icon: const Icon(Icons.history, size: 18),
+                label: const Text('Lihat Riwayat Kunjungan'),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: () => _openGoogleMaps(m),
+              icon: const Icon(Icons.open_in_new, size: 14),
+              label: const Text('Buka di Google Maps', style: TextStyle(fontSize: 12)),
+            ),
           ],
         ),
       ),
     );
   }
 
+  String _formatDistance(double meters) {
+    if (meters < 1000) return '${meters.toStringAsFixed(0)} m';
+    return '${(meters / 1000).toStringAsFixed(1)} km';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final memberProvider = context.watch<MemberProvider>();
+    final allMembers = _membersWithLokasi;
+    final visibleMembers = _navigatingTo != null ? [_navigatingTo!] : allMembers;
+
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Member Not Get'),
-        actions: [IconButton(icon: const Icon(Icons.refresh), onPressed: _load)],
-        bottom: TabBar(controller: _tabController, tabs: const [Tab(text: 'Peta'), Tab(text: 'Daftar')]),
-      ),
-      body: _loading
+      appBar: AppBar(title: const Text('Lokasi Member')),
+      body: memberProvider.state == MemberState.loading
           ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text('Gagal memuat data: $_error', textAlign: TextAlign.center)))
-              : _data.isEmpty
-                  ? const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('Belum ada laporan Not Get. Pastikan sales sudah mengirim laporan dengan tanda "Not Get" dicentang.', textAlign: TextAlign.center)))
-                  : TabBarView(
-                      controller: _tabController,
+          : allMembers.isEmpty
+              ? const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('Belum ada data lokasi member untuk Anda.', textAlign: TextAlign.center)))
+              : Stack(
+                  children: [
+                    FlutterMap(
+                      mapController: _mapController,
+                      options: MapOptions(initialCenter: LatLng(allMembers.first.latitude!, allMembers.first.longitude!), initialZoom: 12),
                       children: [
-                        _withLokasi.isEmpty
-                            ? const Center(child: Text('Data ada, tapi belum ada koordinat lokasi.'))
-                            : FlutterMap(
-                                options: MapOptions(
-                                  initialCenter: LatLng(double.parse(_withLokasi.first['latitude'].toString()), double.parse(_withLokasi.first['longitude'].toString())),
-                                  initialZoom: 11,
-                                ),
-                                children: [
-                                  TileLayer(urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', subdomains: const ['a', 'b', 'c'], userAgentPackageName: 'com.rkm.app'),
-                                  MarkerLayer(
-                                    markers: _withLokasi.map((item) {
-                                      final lat = double.parse(item['latitude'].toString());
-                                      final lng = double.parse(item['longitude'].toString());
-                                      return Marker(
-                                        point: LatLng(lat, lng),
-                                        width: 40, height: 40,
-                                        child: GestureDetector(
-                                          onTap: () => _showDetail(item),
-                                          child: const Icon(Icons.location_on, color: AppColors.error, size: 36, shadows: [Shadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))]),
-                                        ),
-                                      );
-                                    }).toList(),
-                                  ),
-                                ],
-                              ),
-                        ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _data.length,
-                          itemBuilder: (context, index) {
-                            final item = _data[index];
-                            return GestureDetector(
-                              onTap: () => _showDetail(item),
-                              child: Container(
-                                margin: const EdgeInsets.only(bottom: 10),
-                                padding: const EdgeInsets.all(14),
-                                decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.error.withOpacity(0.2))),
-                                child: Row(
-                                  children: [
-                                    if (item['foto_url'] != null)
-                                      ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network(item['foto_url'], width: 48, height: 48, fit: BoxFit.cover))
-                                    else
-                                      Container(width: 48, height: 48, decoration: BoxDecoration(color: AppColors.error.withOpacity(0.1), borderRadius: BorderRadius.circular(8)), child: const Icon(Icons.cancel_outlined, color: AppColors.error)),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(item['member'] ?? '-', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                          Text('${item['kecamatan'] ?? '-'}, ${item['kota'] ?? '-'}', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                                          Text('Sales: ${item['nama_sales'] ?? '-'}', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                        TileLayer(urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', subdomains: const ['a', 'b', 'c'], userAgentPackageName: 'com.rkm.app'),
+                        if (_routePoints != null) PolylineLayer(polylines: [Polyline(points: _routePoints!, strokeWidth: 5, color: _kBlue)]),
+                        MarkerLayer(
+                          markers: visibleMembers.map((m) {
+                            final color = m.sudahKunjungan ? AppColors.action : _kBlue;
+                            return Marker(
+                              point: LatLng(m.latitude!, m.longitude!),
+                              width: 36, height: 44, alignment: Alignment.topCenter,
+                              child: GestureDetector(
+                                onTap: () => _navigatingTo == null ? _showMemberSheet(m) : null,
+                                child: Icon(Icons.location_on, color: color, size: 40, shadows: const [Shadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))]),
                               ),
                             );
-                          },
+                          }).toList(),
                         ),
                       ],
                     ),
+                    if (_buildingRoute) const Center(child: CircularProgressIndicator()),
+                    if (_navigatingTo != null && !_buildingRoute)
+                      Positioned(
+                        left: 16, right: 16, bottom: 16,
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 16, offset: const Offset(0, 4))]),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(color: _kBlue.withOpacity(0.1), shape: BoxShape.circle),
+                                child: const Icon(Icons.navigation, color: _kBlue, size: 20),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(_navigatingTo!.nama, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                    if (_distanceMeters != null)
+                                      Text('Jarak: ${_formatDistance(_distanceMeters!)}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: _cancelNavigation,
+                                icon: const Icon(Icons.close, color: AppColors.error),
+                                tooltip: 'Batalkan navigasi',
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
     );
   }
 }
