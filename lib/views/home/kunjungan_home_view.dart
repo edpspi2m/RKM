@@ -97,8 +97,6 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
     final nama = authProvider.user?.nama ?? 'Sales';
     final fotoProfil = authProvider.user?.fotoProfil;
     final isMaster = authProvider.user?.role == 'master';
-    final belumList = memberProvider.members.where((m) => !m.sudahKunjungan).take(3).toList();
-    final totalBelum = memberProvider.members.where((m) => !m.sudahKunjungan).length;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -272,52 +270,59 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
               ),
               const SizedBox(height: 24),
 
-              if (belumList.isNotEmpty) ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Belum Dikunjungi Hari Ini', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      Text('$totalBelum toko', style: const TextStyle(color: AppColors.warning, fontSize: 12, fontWeight: FontWeight.w600)),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 10),
-                ...belumList.map((m) => Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    Expanded(
                       child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.divider)),
-                        child: Row(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: AppColors.divider),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.storefront_outlined, color: AppColors.primary, size: 20),
-                            const SizedBox(width: 10),
-                            Expanded(child: Text(m.nama, style: const TextStyle(fontSize: 13))),
-                            TextButton(
-                              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => KunjunganFormView(selectedMember: m))),
-                              child: const Text('Kunjungi', style: TextStyle(fontSize: 12)),
+                            const Icon(Icons.storefront, color: AppColors.action, size: 22),
+                            const SizedBox(height: 8),
+                            Text(
+                              '${memberProvider.members.where((m) => m.sudahKunjungan).length}',
+                              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                             ),
+                            const Text('Kunjungan Hari Ini', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
                           ],
                         ),
                       ),
-                    )),
-              ] else if (memberProvider.state == MemberState.success) ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(color: AppColors.action.withOpacity(0.06), borderRadius: BorderRadius.circular(12)),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.check_circle_outline, color: AppColors.action, size: 20),
-                        SizedBox(width: 10),
-                        Expanded(child: Text('Semua member sudah dikunjungi hari ini.', style: TextStyle(fontSize: 13))),
-                      ],
                     ),
-                  ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: AppColors.divider),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.people_outline, color: AppColors.primary, size: 22),
+                            const SizedBox(height: 8),
+                            Text(
+                              '${memberProvider.members.length}',
+                              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                            ),
+                            const Text('Total Member Saya', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
+              const SizedBox(height: 24),
             ],
           ),
         ),
