@@ -1,3 +1,4 @@
+import 'package:device_info_plus/device_info_plus.dart';
 import '../../core/network/api_client.dart';
 import '../../core/constants/api_constant.dart';
 import '../models/user_model.dart';
@@ -17,10 +18,30 @@ class OtpService {
     }
   }
 
+  Future<Map<String, String>> _getDeviceInfo() async {
+    try {
+      final deviceInfo = DeviceInfoPlugin();
+      final androidInfo = await deviceInfo.androidInfo;
+      return {
+        'device_id': androidInfo.id,
+        'device_model': '${androidInfo.brand} ${androidInfo.model}',
+      };
+    } catch (_) {
+      return {'device_id': '', 'device_model': 'Unknown Device'};
+    }
+  }
+
   Future<UserModel> verifyOtp({required String username, required String otp}) async {
+    final deviceInfo = await _getDeviceInfo();
+
     final response = await _apiClient.post(
       ApiConstant.otpVerify,
-      body: {'username': username, 'otp': otp},
+      body: {
+        'username': username,
+        'otp': otp,
+        'device_id': deviceInfo['device_id'],
+        'device_model': deviceInfo['device_model'],
+      },
     );
     final data = response['data'] as Map<String, dynamic>?;
     if (data == null) {
