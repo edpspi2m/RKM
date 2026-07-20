@@ -51,6 +51,9 @@ class KunjunganProvider extends ChangeNotifier {
     required String member,
     required String catatan,
     String statusKunjungan = 'berhasil',
+    String kelurahan = '',
+    String kecamatan = '',
+    String kota = '',
   }) async {
     if (_fotoWatermark == null || _lokasi == null) {
       _errorMessage = 'Foto dan lokasi belum diproses.';
@@ -68,6 +71,9 @@ class KunjunganProvider extends ChangeNotifier {
         catatan: catatan,
         lokasi: _lokasi!,
         statusKunjungan: statusKunjungan,
+        kelurahan: kelurahan,
+        kecamatan: kecamatan,
+        kota: kota,
       );
 
       await _repository.kirimKunjungan(kunjungan: kunjungan, fotoWatermark: _fotoWatermark!);
