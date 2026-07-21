@@ -9,6 +9,8 @@ import '../kunjungan/kunjungan_form_view.dart';
 import '../profile/profile_view.dart';
 import '../tracking/route_tracking_view.dart';
 import '../tracking/tracking_maps_view.dart';
+import '../../providers/izin_status_provider.dart';
+import '../../core/widgets/potensial_get_card.dart';
 
 class KunjunganHomeView extends StatefulWidget {
   const KunjunganHomeView({super.key});
@@ -28,6 +30,7 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
       context.read<PromoProvider>().load();
       final userId = context.read<AuthProvider>().user?.id ?? '';
       context.read<MemberProvider>().load(userId);
+      context.read<IzinStatusProvider>().loadStatus(userId);
     });
   }
 
@@ -47,6 +50,51 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
   String _formatRupiah(double? value) {
     if (value == null) return '-';
     return 'Rp ${value.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}';
+  }
+
+  Future<void> _toggleStatus(BuildContext context, String jenis) async {
+    final izinProvider = context.read<IzinStatusProvider>();
+    final userId = context.read<AuthProvider>().user?.id ?? '';
+
+    if (izinProvider.jenisAktif == jenis) {
+      await izinProvider.stop(userId);
+      return;
+    }
+    if (izinProvider.jenisAktif != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Matikan status "${izinProvider.jenisAktif}" terlebih dahulu.')),
+      );
+      return;
+    }
+
+    if (jenis == 'sakit') {
+      final keterangan = await showDialog<String>(
+        context: context,
+        builder: (ctx) {
+          final controller = TextEditingController();
+          return AlertDialog(
+            title: const Text('Keterangan Sakit'),
+            content: TextField(
+              controller: controller,
+              decoration: const InputDecoration(hintText: 'Contoh: Demam, flu, dll'),
+              maxLines: 2,
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Batal')),
+              TextButton(onPressed: () => Navigator.of(ctx).pop(controller.text.trim()), child: const Text('Aktifkan')),
+            ],
+          );
+        },
+      );
+      if (keterangan == null || keterangan.isEmpty) return;
+      await izinProvider.start(userId: userId, jenis: 'sakit', keterangan: keterangan);
+    } else {
+      await izinProvider.start(userId: userId, jenis: 'istirahat', keterangan: '');
+    }
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Status $jenis diaktifkan.')));
+    }
   }
 
   void _showPromoDetail(PromoModel promo) {
@@ -129,40 +177,85 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                     ),
                     Row(
                       children: [
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: GestureDetector(
+                            onTap: () => _toggleStatus(context, 'sakit'),
+                            child: Consumer<IzinStatusProvider>(
+                              builder: (context, izinProvider, _) => Container(
+                                width: 40, height: 40,
+                                decoration: BoxDecoration(
+                                  color: izinProvider.jenisAktif == 'sakit' ? AppColors.error : Colors.white.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
+                                ),
+                                child: const Icon(Icons.sick_outlined, color: Colors.white, size: 18),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: GestureDetector(
+                            onTap: () => _toggleStatus(context, 'istirahat'),
+                            child: Consumer<IzinStatusProvider>(
+                              builder: (context, izinProvider, _) => Container(
+                                width: 40, height: 40,
+                                decoration: BoxDecoration(
+                                  color: izinProvider.jenisAktif == 'istirahat' ? AppColors.warning : Colors.white.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
+                                ),
+                                child: const Icon(Icons.coffee_outlined, color: Colors.white, size: 18),
+                              ),
+                            ),
+                          ),
+                        ),
                         if (isMaster)
                           Padding(
-                            padding: const EdgeInsets.only(right: 8),
+                            padding: const EdgeInsets.only(right: 6),
                             child: GestureDetector(
                               onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrackingMapsView())),
                               child: Container(
-                                width: 44, height: 44,
+                                width: 40, height: 40,
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(12),
+                                  color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(10),
                                   border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
                                 ),
-                                child: const Icon(Icons.map_outlined, color: Colors.white, size: 20),
+                                child: const Icon(Icons.map_outlined, color: Colors.white, size: 18),
                               ),
                             ),
                           ),
                         Padding(
-                          padding: const EdgeInsets.only(right: 8),
+                          padding: const EdgeInsets.only(right: 6),
                           child: GestureDetector(
                             onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RouteTrackingView())),
                             child: Container(
-                              width: 44, height: 44,
+                              width: 40, height: 40,
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(12),
+                                color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(10),
                                 border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
                               ),
-                              child: const Icon(Icons.route_outlined, color: Colors.white, size: 20),
+                              child: const Icon(Icons.route_outlined, color: Colors.white, size: 18),
                             ),
                           ),
                         ),
                         GestureDetector(
                           onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProfileView())),
                           child: Container(
-                            width: 44, height: 44,
+                            width: 40, height: 40,
                             decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
+                              image: fotoProfil != null ? DecorationImage(image: NetworkImage(fotoProfil), fit: BoxFit.cover) : null,
+                            ),
+                            child: fotoProfil == null
+                                ? Center(child: Text(_getInitial(nama), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)))
+                                : null,
+                          ),
+                        ),
+                      ],
+                    ),
                               color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(12),
                               border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
                               image: fotoProfil != null ? DecorationImage(image: NetworkImage(fotoProfil), fit: BoxFit.cover) : null,
@@ -322,6 +415,8 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                   ],
                 ),
               ),
+              const SizedBox(height: 12),
+              const PotensialGetCard(),
               const SizedBox(height: 24),
             ],
           ),
