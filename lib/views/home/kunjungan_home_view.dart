@@ -256,17 +256,6 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                         ),
                       ],
                     ),
-                              color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
-                              image: fotoProfil != null ? DecorationImage(image: NetworkImage(fotoProfil), fit: BoxFit.cover) : null,
-                            ),
-                            child: fotoProfil == null
-                                ? Center(child: Text(_getInitial(nama), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)))
-                                : null,
-                          ),
-                        ),
-                      ],
-                    ),
                   ],
                 ),
               ),
