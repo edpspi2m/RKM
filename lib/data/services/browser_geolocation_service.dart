@@ -1,5 +1,5 @@
-import 'dart:js_interop';
-import 'package:web/web.dart' as web;
+import 'dart:js' as js;
+import 'dart:async';
 
 /// Service untuk akses Geolocation API Browser (hanya untuk web)
 class BrowserGeolocationService {
@@ -7,12 +7,9 @@ class BrowserGeolocationService {
 
   /// Initialize JavaScript untuk geolocation
   static void initializeJavaScript() {
-    if (web.document.getElementById(_scriptId) != null) return;
+    if (js.context['rkmGeolocation'] != null) return;
 
-    final script = web.document.createElement('script') as web.HTMLScriptElement;
-    script.id = _scriptId;
-    script.type = 'text/javascript';
-    script.innerHTML = '''
+    final script = '''
       window.rkmGeolocation = {
         getCurrentPosition: function() {
           return new Promise((resolve, reject) => {
@@ -87,35 +84,34 @@ class BrowserGeolocationService {
       };
     ''';
 
-    web.document.head!.appendChild(script);
+    js.context.callMethod('eval', [script]);
   }
 
   /// Get current position sekali
   static Future<Map<String, dynamic>> getCurrentPosition() async {
     initializeJavaScript();
 
-    final jsFunction = web.window.getProperty('rkmGeolocation'.toJS) as JSObject?;
-    if (jsFunction == null) {
-      throw Exception('Geolocation service tidak tersedia');
-    }
-
     try {
-      final getCurrentPositionFn =
-          (jsFunction as JSObject).getProperty('getCurrentPosition'.toJS) as JSFunction;
-      final result = await getCurrentPositionFn.callAsFunction().toDart;
+      final rkmGeolocation = js.context['rkmGeolocation'];
+      if (rkmGeolocation == null) {
+        throw Exception('Geolocation service tidak tersedia');
+      }
 
-      if (result is! JSObject) {
+      final result = await js.JsObject.fromBrowserObject(rkmGeolocation)
+          .callMethod('getCurrentPosition', []) as dynamic;
+
+      if (result is! Map) {
         throw Exception('Invalid response dari browser');
       }
 
       return {
-        'latitude': (result.getProperty('latitude'.toJS) as JSNumber).toDartDouble,
-        'longitude': (result.getProperty('longitude'.toJS) as JSNumber).toDartDouble,
-        'accuracy': (result.getProperty('accuracy'.toJS) as JSNumber).toDartDouble,
-        'altitude': (result.getProperty('altitude'.toJS) as JSNumber).toDartDouble,
-        'heading': (result.getProperty('heading'.toJS) as JSNumber).toDartDouble,
-        'speed': (result.getProperty('speed'.toJS) as JSNumber).toDartDouble,
-        'timestamp': (result.getProperty('timestamp'.toJS) as JSString).toDartString,
+        'latitude': (result['latitude'] as num).toDouble(),
+        'longitude': (result['longitude'] as num).toDouble(),
+        'accuracy': (result['accuracy'] as num).toDouble(),
+        'altitude': (result['altitude'] as num).toDouble(),
+        'heading': (result['heading'] as num).toDouble(),
+        'speed': (result['speed'] as num).toDouble(),
+        'timestamp': result['timestamp'] as String,
       };
     } catch (e) {
       throw Exception('Browser Geolocation Error: $e');
@@ -130,34 +126,34 @@ class BrowserGeolocationService {
 
     final controller = StreamController<Map<String, dynamic>>();
 
-    final jsFunction = web.window.getProperty('rkmGeolocation'.toJS) as JSObject?;
-    if (jsFunction == null) {
-      controller.addError(Exception('Geolocation service tidak tersedia'));
-      return controller.stream;
-    }
-
     try {
-      final watchPositionFn =
-          (jsFunction as JSObject).getProperty('watchPosition'.toJS) as JSFunction;
+      final rkmGeolocation = js.context['rkmGeolocation'];
+      if (rkmGeolocation == null) {
+        controller.addError(Exception('Geolocation service tidak tersedia'));
+        return controller.stream;
+      }
 
-      _watchId = (await watchPositionFn.callAsFunction(
-        (position) {
-          if (position is JSObject) {
-            controller.add({
-              'latitude': (position.getProperty('latitude'.toJS) as JSNumber).toDartDouble,
-              'longitude': (position.getProperty('longitude'.toJS) as JSNumber).toDartDouble,
-              'accuracy': (position.getProperty('accuracy'.toJS) as JSNumber).toDartDouble,
-              'altitude': (position.getProperty('altitude'.toJS) as JSNumber).toDartDouble,
-              'heading': (position.getProperty('heading'.toJS) as JSNumber).toDartDouble,
-              'speed': (position.getProperty('speed'.toJS) as JSNumber).toDartDouble,
-              'timestamp': (position.getProperty('timestamp'.toJS) as JSString).toDartString,
-            });
-          }
-        }.toJS,
-        (error) {
-          controller.addError(Exception(error.toString()));
-        }.toJS,
-      ).toDart as JSNumber).toInt();
+      _watchId = js.JsObject.fromBrowserObject(rkmGeolocation).callMethod(
+        'watchPosition',
+        [
+          (position) {
+            if (position is Map) {
+              controller.add({
+                'latitude': (position['latitude'] as num).toDouble(),
+                'longitude': (position['longitude'] as num).toDouble(),
+                'accuracy': (position['accuracy'] as num).toDouble(),
+                'altitude': (position['altitude'] as num).toDouble(),
+                'heading': (position['heading'] as num).toDouble(),
+                'speed': (position['speed'] as num).toDouble(),
+                'timestamp': position['timestamp'] as String,
+              });
+            }
+          },
+          (error) {
+            controller.addError(Exception(error.toString()));
+          },
+        ],
+      ) as int;
 
       return controller.stream;
     } catch (e) {
@@ -170,13 +166,16 @@ class BrowserGeolocationService {
   static void clearWatch() {
     if (_watchId == null) return;
 
-    initializeJavaScript();
-
-    final jsFunction = web.window.getProperty('rkmGeolocation'.toJS) as JSObject?;
-    if (jsFunction != null) {
-      final clearWatchFn = (jsFunction as JSObject).getProperty('clearWatch'.toJS) as JSFunction;
-      clearWatchFn.callAsFunction(_watchId);
-      _watchId = null;
+    try {
+      initializeJavaScript();
+      final rkmGeolocation = js.context['rkmGeolocation'];
+      if (rkmGeolocation != null) {
+        js.JsObject.fromBrowserObject(rkmGeolocation)
+            .callMethod('clearWatch', [_watchId]);
+        _watchId = null;
+      }
+    } catch (e) {
+      print('Error clearing watch: $e');
     }
   }
 }
