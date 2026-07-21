@@ -6,6 +6,7 @@ import '../../app/theme/app_colors.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/loading_overlay.dart';
 import '../../core/widgets/fake_gps_dialog.dart';
+import '../../core/widgets/kediri_region_picker.dart';
 import '../../data/models/member_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/kunjungan_provider.dart';
@@ -96,6 +97,7 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
       kelurahan: _isNotGet ? _kelurahanController.text.trim() : '',
       kecamatan: _isNotGet ? _kecamatanController.text.trim() : '',
       kota: _isNotGet ? _kotaController.text.trim() : '',
+      fromMemberList: widget.selectedMember != null,
     );
 
     if (!mounted) return;
@@ -255,11 +257,11 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
                   const SizedBox(height: 12),
                   const Text('Detail Lokasi Member Not Get', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.error)),
                   const SizedBox(height: 8),
-                  TextField(controller: _kelurahanController, decoration: InputDecoration(labelText: 'Desa / Kelurahan', filled: true, fillColor: AppColors.inputFill, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none))),
-                  const SizedBox(height: 10),
-                  TextField(controller: _kecamatanController, decoration: InputDecoration(labelText: 'Kecamatan', filled: true, fillColor: AppColors.inputFill, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none))),
-                  const SizedBox(height: 10),
-                  TextField(controller: _kotaController, decoration: InputDecoration(labelText: 'Kota / Kabupaten', filled: true, fillColor: AppColors.inputFill, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none))),
+                  KediriRegionPicker(
+                    kotaController: _kotaController,
+                    kecamatanController: _kecamatanController,
+                    desaController: _kelurahanController,
+                  ),
                 ],
               ],
 
