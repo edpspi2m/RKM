@@ -1,5 +1,8 @@
+import 'dart:convert';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/gps_location_model.dart';
 
 class LocationService {
@@ -28,8 +31,8 @@ class LocationService {
     );
 
     // ====== Validasi ketat: tolak jika lokasi palsu ======
-    // Pesan ini dirancang generik agar tidak menjelaskan mekanisme deteksi.
     if (pos.isMocked) {
+      await _reportFakeGps(pos, 'foto_kunjungan');
       throw Exception('GPS tidak valid, coba lagi.');
     }
 
@@ -53,5 +56,33 @@ class LocationService {
       capturedAt: DateTime.now(),
       accuracy: pos.accuracy,
     );
+  }
+
+  /// Kirim laporan fake GPS ke server (diteruskan ke Telegram).
+  /// Best-effort — tidak boleh menghambat/menggagalkan alur utama app kalau
+  /// gagal kirim (misal tidak ada internet).
+  Future<void> _reportFakeGps(Position pos, String context) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('user_id') ?? '';
+      final nama = prefs.getString('nama') ?? '';
+      if (userId.isEmpty) return;
+
+      await http
+          .post(
+            Uri.parse('https://api.isreport.my.id/absen/report_fake_gps.php'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'user_id': userId,
+              'nama_sales': nama,
+              'latitude': pos.latitude,
+              'longitude': pos.longitude,
+              'context': context,
+            }),
+          )
+          .timeout(const Duration(seconds: 8));
+    } catch (_) {
+      // Diamkan — laporan gagal tidak boleh mengganggu alur utama.
+    }
   }
 }
