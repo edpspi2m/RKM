@@ -22,6 +22,8 @@ import '../providers/riwayat_provider.dart';
 import '../providers/location_share_provider.dart';
 import '../providers/otp_provider.dart';
 import '../providers/route_tracking_provider.dart';
+import '../providers/izin_status_provider.dart';
+import '../providers/potensial_get_provider.dart';
 import '../views/login/login_view.dart';
 import '../views/main_navigation_view.dart';
 
@@ -61,6 +63,8 @@ class RkmApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => LocationShareProvider(locationShareService)),
         ChangeNotifierProvider(create: (_) => OtpProvider(otpService)),
         ChangeNotifierProvider(create: (_) => RouteTrackingProvider(routeTrackingService)),
+        ChangeNotifierProvider(create: (_) => IzinStatusProvider()),
+        ChangeNotifierProvider(create: (_) => PotensialGetProvider()),
       ],
       child: MaterialApp(
         title: 'RKM App',
