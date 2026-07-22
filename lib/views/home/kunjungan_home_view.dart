@@ -4,13 +4,13 @@ import '../../app/theme/app_colors.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/member_provider.dart';
 import '../../providers/promo_provider.dart';
-import '../../providers/izin_status_provider.dart';
 import '../../data/models/promo_model.dart';
 import '../kunjungan/kunjungan_form_view.dart';
 import '../profile/profile_view.dart';
 import '../tracking/route_tracking_view.dart';
 import '../tracking/tracking_maps_view.dart';
-import '../lokasi_member/potensial_get_view.dart';
+import '../../providers/izin_status_provider.dart';
+import '../../core/widgets/potensial_get_card.dart';
 
 class KunjunganHomeView extends StatefulWidget {
   const KunjunganHomeView({super.key});
@@ -30,6 +30,7 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
       context.read<PromoProvider>().load();
       final userId = context.read<AuthProvider>().user?.id ?? '';
       context.read<MemberProvider>().load(userId);
+      context.read<IzinStatusProvider>().loadStatus(userId);
     });
   }
 
@@ -51,7 +52,7 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
     return 'Rp ${value.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}';
   }
 
-  Future<void> _toggleStatus(String jenis) async {
+  Future<void> _toggleStatus(BuildContext context, String jenis) async {
     final izinProvider = context.read<IzinStatusProvider>();
     final userId = context.read<AuthProvider>().user?.id ?? '';
 
@@ -60,7 +61,9 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
       return;
     }
     if (izinProvider.jenisAktif != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Matikan status "${izinProvider.jenisAktif}" terlebih dahulu.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Matikan status "${izinProvider.jenisAktif}" terlebih dahulu.')),
+      );
       return;
     }
 
@@ -71,7 +74,11 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
           final controller = TextEditingController();
           return AlertDialog(
             title: const Text('Keterangan Sakit'),
-            content: TextField(controller: controller, decoration: const InputDecoration(hintText: 'Contoh: Demam, flu, dll'), maxLines: 2),
+            content: TextField(
+              controller: controller,
+              decoration: const InputDecoration(hintText: 'Contoh: Demam, flu, dll'),
+              maxLines: 2,
+            ),
             actions: [
               TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Batal')),
               TextButton(onPressed: () => Navigator.of(ctx).pop(controller.text.trim()), child: const Text('Aktifkan')),
@@ -85,28 +92,9 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
       await izinProvider.start(userId: userId, jenis: 'istirahat', keterangan: '');
     }
 
-    if (mounted) {
+    if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Status $jenis diaktifkan.')));
     }
-  }
-
-  Widget _headerIcon({required Widget icon, required VoidCallback onTap, bool active = false, Color? activeColor}) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 6),
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            color: active ? (activeColor ?? AppColors.action) : Colors.white.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.2),
-          ),
-          child: Center(child: icon),
-        ),
-      ),
-    );
   }
 
   void _showPromoDetail(PromoModel promo) {
@@ -135,10 +123,12 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
             Row(
               children: [
                 if (promo.hargaNormal != null)
-                  Text(_formatRupiah(promo.hargaNormal), style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, decoration: TextDecoration.lineThrough)),
+                  Text(_formatRupiah(promo.hargaNormal),
+                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, decoration: TextDecoration.lineThrough)),
                 const SizedBox(width: 8),
                 if (promo.hargaPromo != null)
-                  Text(_formatRupiah(promo.hargaPromo), style: const TextStyle(color: AppColors.action, fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text(_formatRupiah(promo.hargaPromo),
+                      style: const TextStyle(color: AppColors.action, fontSize: 18, fontWeight: FontWeight.bold)),
               ],
             ),
           ],
@@ -152,7 +142,6 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
     final authProvider = context.watch<AuthProvider>();
     final promoProvider = context.watch<PromoProvider>();
     final memberProvider = context.watch<MemberProvider>();
-    final izinProvider = context.watch<IzinStatusProvider>();
     final nama = authProvider.user?.nama ?? 'Sales';
     final fotoProfil = authProvider.user?.fotoProfil;
     final isMaster = authProvider.user?.role == 'master';
@@ -170,78 +159,102 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
             padding: const EdgeInsets.only(bottom: 24),
             children: [
               Container(
-                padding: const EdgeInsets.fromLTRB(20, 20, 16, 24),
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
                 decoration: const BoxDecoration(
                   color: AppColors.primary,
                   borderRadius: BorderRadius.only(bottomLeft: Radius.circular(24), bottomRight: Radius.circular(24)),
                 ),
                 child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Teks nama WAJIB Flexible, biar tidak pernah bikin overflow
-                    // walau nama sales panjang / layar sempit.
-                    Flexible(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text('Selamat bekerja,', style: TextStyle(color: Colors.white70, fontSize: 11)),
-                          const SizedBox(height: 2),
-                          Text(nama, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
-                        ],
-                      ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Selamat bekerja,', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                        const SizedBox(height: 2),
+                        Text(nama, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    // Icon-icon dibungkus SingleChildScrollView horizontal —
-                    // jaminan TIDAK AKAN PERNAH overflow di HP mana pun,
-                    // walau ada 5 icon sekaligus di layar sempit.
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      reverse: true,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _headerIcon(
-                            icon: const Icon(Icons.sick_outlined, color: Colors.white, size: 17),
-                            onTap: () => _toggleStatus('sakit'),
-                            active: izinProvider.jenisAktif == 'sakit',
-                            activeColor: AppColors.error,
-                          ),
-                          _headerIcon(
-                            icon: const Icon(Icons.coffee_outlined, color: Colors.white, size: 17),
-                            onTap: () => _toggleStatus('istirahat'),
-                            active: izinProvider.jenisAktif == 'istirahat',
-                            activeColor: AppColors.warning,
-                          ),
-                          if (isMaster)
-                            _headerIcon(
-                              icon: const Icon(Icons.map_outlined, color: Colors.white, size: 17),
-                              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrackingMapsView())),
-                            ),
-                          _headerIcon(
-                            icon: const Icon(Icons.route_outlined, color: Colors.white, size: 17),
-                            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RouteTrackingView())),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.only(left: 6),
-                            child: GestureDetector(
-                              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProfileView())),
-                              child: Container(
-                                width: 38, height: 38,
+                    Row(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: GestureDetector(
+                            onTap: () => _toggleStatus(context, 'sakit'),
+                            child: Consumer<IzinStatusProvider>(
+                              builder: (context, izinProvider, _) => Container(
+                                width: 40, height: 40,
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.15),
+                                  color: izinProvider.jenisAktif == 'sakit' ? AppColors.error : Colors.white.withOpacity(0.15),
                                   borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.2),
-                                  image: fotoProfil != null ? DecorationImage(image: NetworkImage(fotoProfil), fit: BoxFit.cover) : null,
+                                  border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
                                 ),
-                                child: fotoProfil == null
-                                    ? Center(child: Text(_getInitial(nama), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)))
-                                    : null,
+                                child: const Icon(Icons.sick_outlined, color: Colors.white, size: 18),
                               ),
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: GestureDetector(
+                            onTap: () => _toggleStatus(context, 'istirahat'),
+                            child: Consumer<IzinStatusProvider>(
+                              builder: (context, izinProvider, _) => Container(
+                                width: 40, height: 40,
+                                decoration: BoxDecoration(
+                                  color: izinProvider.jenisAktif == 'istirahat' ? AppColors.warning : Colors.white.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
+                                ),
+                                child: const Icon(Icons.coffee_outlined, color: Colors.white, size: 18),
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (isMaster)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: GestureDetector(
+                              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrackingMapsView())),
+                              child: Container(
+                                width: 40, height: 40,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
+                                ),
+                                child: const Icon(Icons.map_outlined, color: Colors.white, size: 18),
+                              ),
+                            ),
+                          ),
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: GestureDetector(
+                            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RouteTrackingView())),
+                            child: Container(
+                              width: 40, height: 40,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
+                              ),
+                              child: const Icon(Icons.route_outlined, color: Colors.white, size: 18),
+                            ),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProfileView())),
+                          child: Container(
+                            width: 40, height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
+                              image: fotoProfil != null ? DecorationImage(image: NetworkImage(fotoProfil), fit: BoxFit.cover) : null,
+                            ),
+                            child: fotoProfil == null
+                                ? Center(child: Text(_getInitial(nama), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)))
+                                : null,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -337,7 +350,7 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
 
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -346,13 +359,20 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                     Expanded(
                       child: Container(
                         padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.divider)),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: AppColors.divider),
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Icon(Icons.storefront, color: AppColors.action, size: 22),
                             const SizedBox(height: 8),
-                            Text('${memberProvider.members.where((m) => m.sudahKunjungan).length}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                            Text(
+                              '${memberProvider.members.where((m) => m.sudahKunjungan).length}',
+                              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                            ),
                             const Text('Kunjungan Hari Ini', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
                           ],
                         ),
@@ -362,13 +382,20 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                     Expanded(
                       child: Container(
                         padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.divider)),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: AppColors.divider),
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Icon(Icons.people_outline, color: AppColors.primary, size: 22),
                             const SizedBox(height: 8),
-                            Text('${memberProvider.members.length}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                            Text(
+                              '${memberProvider.members.length}',
+                              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                            ),
                             const Text('Total Member Saya', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
                           ],
                         ),
@@ -378,36 +405,8 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                 ),
               ),
               const SizedBox(height: 12),
-
-              GestureDetector(
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PotensialGetView())),
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 20),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(color: AppColors.action.withOpacity(0.08), borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.action.withOpacity(0.25))),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 44, height: 44,
-                        decoration: BoxDecoration(color: AppColors.action.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
-                        child: const Icon(Icons.stars_outlined, color: AppColors.action),
-                      ),
-                      const SizedBox(width: 14),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('List Potensial Get', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                            SizedBox(height: 2),
-                            Text('Member yang belum pernah dikunjungi', style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
-                          ],
-                        ),
-                      ),
-                      const Icon(Icons.chevron_right, color: AppColors.textSecondary),
-                    ],
-                  ),
-                ),
-              ),
+              const PotensialGetCard(),
+              const SizedBox(height: 24),
             ],
           ),
         ),
