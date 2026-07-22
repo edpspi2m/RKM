@@ -6,7 +6,7 @@ import '../../app/theme/app_colors.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/loading_overlay.dart';
 import '../../core/widgets/fake_gps_dialog.dart';
-import '../../core/widgets/kediri_region_picker.dart';
+import '../../core/widgets/kediri_area_picker.dart';
 import '../../data/models/member_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/kunjungan_provider.dart';
@@ -257,10 +257,10 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
                   const SizedBox(height: 12),
                   const Text('Detail Lokasi Member Not Get', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.error)),
                   const SizedBox(height: 8),
-                  KediriRegionPicker(
-                    kotaController: _kotaController,
+                  KediriAreaPicker(
+                    kelurahanController: _kelurahanController,
                     kecamatanController: _kecamatanController,
-                    desaController: _kelurahanController,
+                    kotaController: _kotaController,
                   ),
                 ],
               ],
