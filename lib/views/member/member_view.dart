@@ -25,12 +25,13 @@ class _MemberViewState extends State<MemberView> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<MemberProvider>();
-    final userId = context.read<AuthProvider>().user?.id ?? '';
-    final belumCount = provider.members.where((m) => !m.sudahKunjungan).length;
+    final authProvider = context.read<AuthProvider>();
+    final userId = authProvider.user?.id ?? '';
+    final isMaster = authProvider.user?.role == 'master';
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Daftar Member')),
+      appBar: AppBar(title: Text(isMaster ? 'Semua Member (Master)' : 'Daftar Member')),
       body: Column(
         children: [
           Padding(
@@ -50,8 +51,12 @@ class _MemberViewState extends State<MemberView> {
                 ),
                 if (provider.state == MemberState.success) ...[
                   const SizedBox(height: 10),
-                  Text('$belumCount member belum dikunjungi hari ini',
-                      style: const TextStyle(color: AppColors.warning, fontSize: 12, fontWeight: FontWeight.w600)),
+                  Text(
+                    isMaster
+                        ? '${provider.members.length} member dari semua salesman'
+                        : '${provider.members.where((m) => !m.sudahKunjungan).length} member belum dikunjungi hari ini',
+                    style: const TextStyle(color: AppColors.warning, fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
                 ],
               ],
             ),
@@ -60,21 +65,17 @@ class _MemberViewState extends State<MemberView> {
             child: RefreshIndicator(
               onRefresh: () => context.read<MemberProvider>().load(userId),
               child: Builder(builder: (_) {
-                if (provider.state == MemberState.loading) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+                if (provider.state == MemberState.loading) return const Center(child: CircularProgressIndicator());
                 if (provider.state == MemberState.error) {
                   return Center(
                     child: Padding(
                       padding: const EdgeInsets.all(24),
-                      child: Text(provider.errorMessage ?? 'Gagal memuat data member',
-                          textAlign: TextAlign.center, style: const TextStyle(color: AppColors.error)),
+                      child: Text(provider.errorMessage ?? 'Gagal memuat data member', textAlign: TextAlign.center, style: const TextStyle(color: AppColors.error)),
                     ),
                   );
                 }
-                if (provider.members.isEmpty) {
-                  return const Center(child: Text('Belum ada member terdaftar untuk Anda'));
-                }
+                if (provider.members.isEmpty) return const Center(child: Text('Belum ada member terdaftar untuk Anda'));
+
                 return ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemCount: provider.members.length,
@@ -85,42 +86,40 @@ class _MemberViewState extends State<MemberView> {
                       decoration: BoxDecoration(
                         color: AppColors.surface,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: member.sudahKunjungan ? AppColors.action.withOpacity(0.3) : AppColors.divider,
-                        ),
+                        border: Border.all(color: member.sudahKunjungan ? AppColors.action.withOpacity(0.3) : AppColors.divider),
                       ),
                       child: ListTile(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         leading: Container(
                           width: 44, height: 44,
                           decoration: BoxDecoration(
-                            color: member.sudahKunjungan
-                                ? AppColors.action.withOpacity(0.1)
-                                : AppColors.primary.withOpacity(0.1),
+                            color: member.sudahKunjungan ? AppColors.action.withOpacity(0.1) : AppColors.primary.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: Icon(
-                            member.sudahKunjungan ? Icons.check_circle : Icons.storefront_outlined,
-                            color: member.sudahKunjungan ? AppColors.action : AppColors.primary,
-                          ),
+                          child: Icon(member.sudahKunjungan ? Icons.check_circle : Icons.storefront_outlined, color: member.sudahKunjungan ? AppColors.action : AppColors.primary),
                         ),
                         title: Text(member.nama, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                        subtitle: Text('${member.kodeMember} • ${member.kota ?? '-'}',
-                            style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                        subtitle: Row(
+                          children: [
+                            Expanded(child: Text('${member.kodeMember} • ${member.kota ?? '-'}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12))),
+                            if (isMaster && member.salesman != null) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+                                child: Text(member.salesman!, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                              ),
+                            ],
+                          ],
+                        ),
                         trailing: member.sudahKunjungan
                             ? Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                    color: AppColors.action.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                                child: const Text('Selesai',
-                                    style: TextStyle(color: AppColors.action, fontSize: 10, fontWeight: FontWeight.bold)),
+                                decoration: BoxDecoration(color: AppColors.action.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                                child: const Text('Selesai', style: TextStyle(color: AppColors.action, fontSize: 10, fontWeight: FontWeight.bold)),
                               )
                             : const Icon(Icons.chevron_right, color: AppColors.textSecondary),
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => KunjunganFormView(selectedMember: member)),
-                          );
-                        },
+                        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => KunjunganFormView(selectedMember: member))),
                       ),
                     );
                   },
