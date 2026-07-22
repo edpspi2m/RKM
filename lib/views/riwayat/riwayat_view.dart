@@ -41,11 +41,7 @@ class _RiwayatViewState extends State<RiwayatView> {
       );
     }
 
-    final map = {
-      'pending': ('Menunggu', AppColors.warning),
-      'approved': ('Disetujui', AppColors.action),
-      'rejected': ('Ditolak', AppColors.error),
-    };
+    final map = {'pending': ('Menunggu', AppColors.warning), 'approved': ('Disetujui', AppColors.action), 'rejected': ('Ditolak', AppColors.error)};
     final (label, color) = map[approval] ?? ('Menunggu', AppColors.warning);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -54,7 +50,7 @@ class _RiwayatViewState extends State<RiwayatView> {
     );
   }
 
-  void _showDetail(Map<String, dynamic> item) {
+  void _showDetail(Map<String, dynamic> item, bool showSales) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -73,6 +69,10 @@ class _RiwayatViewState extends State<RiwayatView> {
               Expanded(child: Text(item['member'] ?? '-', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
               _statusBadge(item),
             ]),
+            if (showSales) ...[
+              const SizedBox(height: 4),
+              Text('Sales: ${item['nama_sales'] ?? '-'}', style: const TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w600)),
+            ],
             const SizedBox(height: 6),
             Text(item['catatan'] ?? '-', style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
             const SizedBox(height: 10),
@@ -100,13 +100,31 @@ class _RiwayatViewState extends State<RiwayatView> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<RiwayatProvider>();
-    final userId = context.read<AuthProvider>().user?.id ?? '';
+    final authProvider = context.read<AuthProvider>();
+    final userId = authProvider.user?.id ?? '';
+    final isMaster = authProvider.user?.role == 'master';
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Riwayat Kunjungan')),
+      appBar: AppBar(
+        title: Text(provider.isAllMode ? 'Riwayat Semua Sales' : 'Riwayat Kunjungan'),
+        actions: [
+          if (isMaster)
+            TextButton.icon(
+              onPressed: () {
+                if (provider.isAllMode) {
+                  context.read<RiwayatProvider>().load(userId);
+                } else {
+                  context.read<RiwayatProvider>().loadAll(userId);
+                }
+              },
+              icon: Icon(provider.isAllMode ? Icons.person : Icons.groups, color: Colors.white, size: 18),
+              label: Text(provider.isAllMode ? 'Saya Saja' : 'Semua Sales', style: const TextStyle(color: Colors.white, fontSize: 12)),
+            ),
+        ],
+      ),
       body: RefreshIndicator(
-        onRefresh: () => context.read<RiwayatProvider>().load(userId),
+        onRefresh: () => provider.isAllMode ? context.read<RiwayatProvider>().loadAll(userId) : context.read<RiwayatProvider>().load(userId),
         child: Builder(builder: (_) {
           if (provider.state == RiwayatState.loading) return const Center(child: CircularProgressIndicator());
           if (provider.state == RiwayatState.error) return Center(child: Text(provider.errorMessage ?? 'Gagal memuat riwayat'));
@@ -128,7 +146,7 @@ class _RiwayatViewState extends State<RiwayatView> {
                     child: Text(_formatTanggal(tanggal), style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryDark, fontSize: 14)),
                   ),
                   ...items.map((item) => GestureDetector(
-                        onTap: () => _showDetail(item),
+                        onTap: () => _showDetail(item, provider.isAllMode),
                         child: Container(
                           margin: const EdgeInsets.only(bottom: 8),
                           padding: const EdgeInsets.all(14),
@@ -136,11 +154,8 @@ class _RiwayatViewState extends State<RiwayatView> {
                           child: Row(
                             children: [
                               if (item['foto_url'] != null)
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Image.network(item['foto_url'], width: 48, height: 48, fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => Container(width: 48, height: 48, color: AppColors.inputFill, child: const Icon(Icons.image_not_supported_outlined, size: 20))),
-                                )
+                                ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network(item['foto_url'], width: 48, height: 48, fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(width: 48, height: 48, color: AppColors.inputFill, child: const Icon(Icons.image_not_supported_outlined, size: 20))))
                               else
                                 Container(width: 48, height: 48, decoration: BoxDecoration(color: AppColors.action.withOpacity(0.1), borderRadius: BorderRadius.circular(8)), child: const Icon(Icons.check_circle_outline, color: AppColors.action)),
                               const SizedBox(width: 12),
@@ -150,7 +165,10 @@ class _RiwayatViewState extends State<RiwayatView> {
                                   children: [
                                     Text(item['member'] ?? '-', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                                     const SizedBox(height: 2),
-                                    Text(item['catatan'] ?? '-', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                    if (provider.isAllMode)
+                                      Text('Sales: ${item['nama_sales'] ?? '-'}', style: const TextStyle(color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.w600))
+                                    else
+                                      Text(item['catatan'] ?? '-', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
                                   ],
                                 ),
                               ),
