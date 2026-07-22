@@ -5,6 +5,8 @@ class MemberModel {
   final String? noHp;
   final String? alamat;
   final String? kota;
+  final String? kecamatan;
+  final String? salesman;
   final double? latitude;
   final double? longitude;
   final String? belanjaTerakhir;
@@ -17,6 +19,8 @@ class MemberModel {
     this.noHp,
     this.alamat,
     this.kota,
+    this.kecamatan,
+    this.salesman,
     this.latitude,
     this.longitude,
     this.belanjaTerakhir,
@@ -31,6 +35,8 @@ class MemberModel {
       noHp: json['no_hp'] as String?,
       alamat: json['alamat'] as String?,
       kota: json['kota'] as String?,
+      kecamatan: json['kecamatan'] as String?,
+      salesman: json['salesman'] as String?,
       latitude: json['latitude'] != null ? double.tryParse(json['latitude'].toString()) : null,
       longitude: json['longitude'] != null ? double.tryParse(json['longitude'].toString()) : null,
       belanjaTerakhir: json['belanja_terakhir'] as String?,
