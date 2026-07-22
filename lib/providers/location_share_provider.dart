@@ -3,14 +3,9 @@ import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import '../data/services/location_share_service.dart';
 
-// Import conditional - untuk web gunakan browser geolocation
-// ignore: avoid_web_libraries_in_flutter
-import '../data/services/browser_geolocation_service.dart'
-    if (dart.library.html) '../data/services/browser_geolocation_service.dart';
-
 class LocationShareProvider extends ChangeNotifier {
   final LocationShareService _service;
-  
+
   LocationShareProvider(this._service);
 
   bool _isSharing = false;
@@ -55,7 +50,8 @@ class LocationShareProvider extends ChangeNotifier {
     var permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
         throw Exception('Izin akses lokasi ditolak.');
       }
     }
@@ -65,18 +61,20 @@ class LocationShareProvider extends ChangeNotifier {
 
     // Setup periodic updates - setiap 20 detik
     _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 20), (_) => _sendLocationUpdateMobile(userId));
+    _timer = Timer.periodic(
+        const Duration(seconds: 20), (_) => _sendLocationUpdateMobile(userId));
   }
 
-  /// Web implementation - gunakan Browser Geolocation API dengan JS interop
+  /// Web implementation - sekarang menggunakan Geolocator (mendukung web)
   Future<void> _startSharingWeb(String userId) async {
     try {
       // Send initial position
       await _sendLocationUpdateWeb(userId);
 
-      // Setup periodic updates - setiap 20 detik (untuk web gunakan polling)
+      // Setup periodic updates - setiap 20 detik
       _timer?.cancel();
-      _timer = Timer.periodic(const Duration(seconds: 20), (_) => _sendLocationUpdateWeb(userId));
+      _timer = Timer.periodic(
+          const Duration(seconds: 20), (_) => _sendLocationUpdateWeb(userId));
     } catch (e) {
       throw Exception('Gagal memulai share lokasi di web: $e');
     }
@@ -85,8 +83,9 @@ class LocationShareProvider extends ChangeNotifier {
   /// Update lokasi dari mobile (Geolocator)
   Future<void> _sendLocationUpdateMobile(String userId) async {
     try {
-      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-      
+      final pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high);
+
       _lastLatitude = pos.latitude;
       _lastLongitude = pos.longitude;
 
@@ -104,24 +103,21 @@ class LocationShareProvider extends ChangeNotifier {
     }
   }
 
-  /// Update lokasi dari web (Browser Geolocation API)
+  /// Update lokasi dari web (sekarang juga pakai Geolocator)
   Future<void> _sendLocationUpdateWeb(String userId) async {
     try {
-      // Pastikan browser geolocation service sudah available
       if (!kIsWeb) return;
 
-      final positionData = await BrowserGeolocationService.getCurrentPosition();
+      final pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high);
 
-      final latitude = positionData['latitude'] as double;
-      final longitude = positionData['longitude'] as double;
-
-      _lastLatitude = latitude;
-      _lastLongitude = longitude;
+      _lastLatitude = pos.latitude;
+      _lastLongitude = pos.longitude;
 
       await _service.updateLocation(
         userId: userId,
-        lat: latitude,
-        lng: longitude,
+        lat: pos.latitude,
+        lng: pos.longitude,
         isSharing: true,
       );
 
@@ -144,15 +140,17 @@ class LocationShareProvider extends ChangeNotifier {
       // Send final update - isSharing = false
       try {
         if (kIsWeb) {
-          final positionData = await BrowserGeolocationService.getCurrentPosition();
+          final pos = await Geolocator.getCurrentPosition(
+              desiredAccuracy: LocationAccuracy.high);
           await _service.updateLocation(
             userId: userId,
-            lat: positionData['latitude'] as double,
-            lng: positionData['longitude'] as double,
+            lat: pos.latitude,
+            lng: pos.longitude,
             isSharing: false,
           );
         } else {
-          final pos = await Geolocator.getCurrentPosition();
+          final pos = await Geolocator.getCurrentPosition(
+              desiredAccuracy: LocationAccuracy.high);
           await _service.updateLocation(
             userId: userId,
             lat: pos.latitude,
@@ -189,11 +187,6 @@ class LocationShareProvider extends ChangeNotifier {
   @override
   void dispose() {
     _timer?.cancel();
-    if (kIsWeb) {
-      try {
-        BrowserGeolocationService.clearWatch();
-      } catch (_) {}
-    }
     super.dispose();
   }
 }
