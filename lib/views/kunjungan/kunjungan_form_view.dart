@@ -58,11 +58,16 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
 
   bool _isFakeGpsError(String msg) {
     final lower = msg.toLowerCase();
-    return lower.contains('gps') || lower.contains('mock') || lower.contains('palsu') || lower.contains('fake') || lower.contains('tidak valid');
+    return lower.contains('gps') ||
+        lower.contains('mock') ||
+        lower.contains('palsu') ||
+        lower.contains('fake') ||
+        lower.contains('tidak valid');
   }
 
   Future<void> _ambilFoto(KunjunganProvider provider) async {
-    final picked = await _picker.pickImage(source: ImageSource.camera, imageQuality: 80, maxWidth: 1280, maxHeight: 1280);
+    final picked = await _picker.pickImage(
+        source: ImageSource.camera, imageQuality: 80, maxWidth: 1280, maxHeight: 1280);
     if (picked == null) return;
     final berhasil = await provider.prosesFoto(File(picked.path));
     if (!berhasil && mounted) {
@@ -70,22 +75,28 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
       if (_isFakeGpsError(msg)) {
         await FakeGpsDialog.show(context);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(msg)));
       }
     }
   }
 
-  String get _namaToko => widget.selectedMember != null ? _namaTokoController.text.trim() : _manualMemberName.trim();
+  String get _namaToko =>
+      widget.selectedMember != null
+          ? _namaTokoController.text.trim()
+          : _manualMemberName.trim();
 
   Future<void> _kirim(KunjunganProvider provider) async {
     if (_namaToko.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nama toko wajib diisi')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Nama toko wajib diisi')));
       return;
     }
 
     final userId = context.read<AuthProvider>().user?.id;
     if (userId == null || userId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sesi login tidak valid, silakan login ulang.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Sesi login tidak valid, silakan login ulang.')));
       return;
     }
 
@@ -97,12 +108,14 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
       kelurahan: _isNotGet ? _kelurahanController.text.trim() : '',
       kecamatan: _isNotGet ? _kecamatanController.text.trim() : '',
       kota: _isNotGet ? _kotaController.text.trim() : '',
-      fromMemberList: widget.selectedMember != null,
+      // ❌ fromMemberList dihapus karena tidak ada di parameter method kirim()
     );
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(berhasil ? 'Laporan berhasil dikirim' : (provider.errorMessage ?? 'Gagal mengirim laporan')),
+      content: Text(berhasil
+          ? 'Laporan berhasil dikirim'
+          : (provider.errorMessage ?? 'Gagal mengirim laporan')),
       backgroundColor: berhasil ? AppColors.action : AppColors.error,
     ));
 
@@ -125,10 +138,13 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
         style: const TextStyle(fontSize: 14),
         decoration: InputDecoration(
           labelText: 'Nama Toko / Outlet',
-          prefixIcon: const Icon(Icons.storefront_outlined, color: AppColors.primary),
+          prefixIcon:
+              const Icon(Icons.storefront_outlined, color: AppColors.primary),
           filled: true,
           fillColor: AppColors.divider.withOpacity(0.3),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+          border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none),
         ),
       );
     }
@@ -153,10 +169,13 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
           decoration: InputDecoration(
             labelText: 'Nama Toko / Outlet',
             hintText: 'Ketik untuk cari member...',
-            prefixIcon: const Icon(Icons.storefront_outlined, color: AppColors.primary),
+            prefixIcon: const Icon(Icons.storefront_outlined,
+                color: AppColors.primary),
             filled: true,
             fillColor: AppColors.inputFill,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none),
           ),
         );
       },
@@ -167,7 +186,8 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
             elevation: 4,
             borderRadius: BorderRadius.circular(12),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 220, minWidth: 280),
+              constraints:
+                  const BoxConstraints(maxHeight: 220, minWidth: 280),
               child: ListView.builder(
                 padding: EdgeInsets.zero,
                 shrinkWrap: true,
@@ -176,9 +196,12 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
                   final option = options.elementAt(index);
                   return ListTile(
                     dense: true,
-                    leading: const Icon(Icons.storefront_outlined, size: 18, color: AppColors.primary),
-                    title: Text(option.nama, style: const TextStyle(fontSize: 13)),
-                    subtitle: Text(option.kota ?? '-', style: const TextStyle(fontSize: 11)),
+                    leading: const Icon(Icons.storefront_outlined,
+                        size: 18, color: AppColors.primary),
+                    title: Text(option.nama,
+                        style: const TextStyle(fontSize: 13)),
+                    subtitle: Text(option.kota ?? '-',
+                        style: const TextStyle(fontSize: 11)),
                     onTap: () => onSelected(option),
                   );
                 },
@@ -193,14 +216,17 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<KunjunganProvider>();
-    final isBusy = provider.state == SubmitState.processingPhoto || provider.state == SubmitState.uploading;
+    final isBusy = provider.state == SubmitState.processingPhoto ||
+        provider.state == SubmitState.uploading;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('Laporan Kunjungan')),
       body: LoadingOverlay(
         isLoading: isBusy,
-        message: provider.state == SubmitState.processingPhoto ? 'Memproses foto & lokasi...' : 'Mengirim laporan...',
+        message: provider.state == SubmitState.processingPhoto
+            ? 'Memproses foto & lokasi...'
+            : 'Mengirim laporan...',
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -210,52 +236,97 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
                 onTap: () => _ambilFoto(provider),
                 child: Container(
                   height: 200,
-                  decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.divider)),
+                  decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.divider)),
                   child: provider.fotoWatermark != null
-                      ? ClipRRect(borderRadius: BorderRadius.circular(16), child: Image.file(provider.fotoWatermark!, fit: BoxFit.cover))
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Image.file(provider.fotoWatermark!,
+                              fit: BoxFit.cover))
                       : Center(
-                          child: Column(mainAxisSize: MainAxisSize.min, children: [
-                            Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.08), shape: BoxShape.circle), child: const Icon(Icons.camera_alt_outlined, size: 32, color: AppColors.primary)),
-                            const SizedBox(height: 10),
-                            const Text('Ketuk untuk ambil foto', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-                          ]),
+                          child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                    padding: const EdgeInsets.all(14),
+                                    decoration: BoxDecoration(
+                                        color: AppColors.primary
+                                            .withOpacity(0.08),
+                                        shape: BoxShape.circle),
+                                    child: const Icon(Icons.camera_alt_outlined,
+                                        size: 32, color: AppColors.primary)),
+                                const SizedBox(height: 10),
+                                const Text('Ketuk untuk ambil foto',
+                                    style: TextStyle(
+                                        color: AppColors.textSecondary,
+                                        fontSize: 13)),
+                              ]),
                         ),
                 ),
               ),
               const SizedBox(height: 20),
-              const Text('Informasi Toko', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+              const Text('Informasi Toko',
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary)),
               const SizedBox(height: 8),
               _buildNamaTokoField(),
               const SizedBox(height: 20),
-              const Text('Keterangan Kunjungan', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+              const Text('Keterangan Kunjungan',
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary)),
               const SizedBox(height: 8),
               TextField(
                 controller: _catatanController,
                 maxLines: 4,
                 style: const TextStyle(fontSize: 14),
-                decoration: InputDecoration(hintText: 'Tulis catatan kunjungan di sini...', filled: true, fillColor: AppColors.inputFill, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
+                decoration: InputDecoration(
+                    hintText: 'Tulis catatan kunjungan di sini...',
+                    filled: true,
+                    fillColor: AppColors.inputFill,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none)),
               ),
 
-              // Checkbox "Not Get" HANYA muncul kalau input manual (bukan dari list Member),
-              // sesuai permintaan: kalau klik dari Member, tidak perlu opsi ini.
+              // Checkbox "Not Get" HANYA muncul kalau input manual
               if (widget.selectedMember == null) ...[
                 const SizedBox(height: 16),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                  decoration: BoxDecoration(color: AppColors.error.withOpacity(0.05), borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.error.withOpacity(0.2))),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                  decoration: BoxDecoration(
+                      color: AppColors.error.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: AppColors.error.withOpacity(0.2))),
                   child: CheckboxListTile(
                     value: _isNotGet,
                     onChanged: (v) => setState(() => _isNotGet = v ?? false),
                     controlAffinity: ListTileControlAffinity.leading,
                     contentPadding: EdgeInsets.zero,
-                    title: const Text('Tandai sebagai Not Get', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                    subtitle: const Text('Member menolak / tidak mau menjadi member', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                    title: const Text('Tandai sebagai Not Get',
+                        style: TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w600)),
+                    subtitle: const Text(
+                        'Member menolak / tidak mau menjadi member',
+                        style: TextStyle(
+                            fontSize: 11, color: AppColors.textSecondary)),
                     activeColor: AppColors.error,
                   ),
                 ),
                 if (_isNotGet) ...[
                   const SizedBox(height: 12),
-                  const Text('Detail Lokasi Member Not Get', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.error)),
+                  const Text('Detail Lokasi Member Not Get',
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.error)),
                   const SizedBox(height: 8),
                   KediriAreaPicker(
                     kelurahanController: _kelurahanController,
@@ -266,7 +337,14 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
               ],
 
               const SizedBox(height: 28),
-              SizedBox(height: 52, child: AppButton(label: 'Kirim Laporan', icon: Icons.send_outlined, onPressed: provider.fotoWatermark == null ? null : () => _kirim(provider))),
+              SizedBox(
+                  height: 52,
+                  child: AppButton(
+                      label: 'Kirim Laporan',
+                      icon: Icons.send_outlined,
+                      onPressed: provider.fotoWatermark == null
+                          ? null
+                          : () => _kirim(provider))),
             ],
           ),
         ),
