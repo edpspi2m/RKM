@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
 import '../core/background/background_location_handler.dart';
 import '../data/models/route_point_model.dart';
 import '../data/services/route_tracking_service.dart';
@@ -10,38 +11,52 @@ const _bufferKey = 'route_point_buffer';
 
 class RouteTrackingProvider extends ChangeNotifier {
   final RouteTrackingService _service;
-
-  RouteTrackingProvider(this._service) {
-    BackgroundLocationHandler.onFakeGpsDetected.listen((event) {
-      _isTracking = false;
-      _fakeGpsDetected = true;
-      notifyListeners();
-    });
-  }
+  RouteTrackingProvider(this._service);
 
   bool _isTracking = false;
   bool _fakeGpsDetected = false;
   bool _isValidating = false;
+  Map<String, dynamic>? _debugStatus;
 
   bool get isTracking => _isTracking;
   bool get fakeGpsDetected => _fakeGpsDetected;
   bool get isValidating => _isValidating;
+  Map<String, dynamic>? get debugStatus => _debugStatus;
+
+  RouteTrackingProvider withListener() {
+    BackgroundLocationHandler.onFakeGpsDetected.listen((event) {
+      _fakeGpsDetected = true;
+      notifyListeners();
+    });
+    return this;
+  }
 
   Future<void> checkInitialState() async {
     _isTracking = await BackgroundLocationHandler.isRunning();
     notifyListeners();
   }
 
+  Future<void> refreshDebugStatus(String userId) async {
+    _debugStatus = await BackgroundLocationHandler.getLastDebugStatus(userId);
+    notifyListeners();
+  }
+
   Future<bool> startTracking(String userId) async {
     _isValidating = true;
     notifyListeners();
-
     try {
       final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high, timeLimit: const Duration(seconds: 10));
       if (pos.isMocked) {
         _isValidating = false;
         _fakeGpsDetected = true;
         notifyListeners();
+        try {
+          await http.post(
+            Uri.parse('https://api.isreport.my.id/absen/report_fake_gps.php'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'user_id': userId, 'latitude': pos.latitude, 'longitude': pos.longitude, 'context': 'toggle_perjalanan'}),
+          ).timeout(const Duration(seconds: 8));
+        } catch (_) {}
         return false;
       }
     } catch (_) {
