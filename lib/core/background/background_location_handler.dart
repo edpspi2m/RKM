@@ -21,87 +21,96 @@ class BackgroundLocationHandler {
         isForegroundMode: true,
         notificationChannelId: _notifChannelId,
         initialNotificationTitle: 'RKM — Perjalanan',
-        initialNotificationContent: 'Titik lokasi tercatat otomatis...',
+        initialNotificationContent: 'Mengirim lokasi secara berkala...',
         foregroundServiceNotificationId: _notifId,
       ),
-      iosConfiguration: IosConfiguration(
-        autoStart: false,
-        onForeground: _onStart,
-        onBackground: _onIosBackground,
-      ),
+      iosConfiguration: IosConfiguration(autoStart: false, onForeground: _onStart, onBackground: _onIosBackground),
     );
   }
 
   static Future<void> start(String userId) async {
     final service = FlutterBackgroundService();
-    if (!await service.isRunning()) {
-      await service.startService();
-    }
+    if (!await service.isRunning()) await service.startService();
     service.invoke('startTracking', {'user_id': userId});
   }
 
   static Future<void> stop(String userId) async {
-    final service = FlutterBackgroundService();
-    service.invoke('stopTracking', {'user_id': userId});
+    FlutterBackgroundService().invoke('stopTracking', {'user_id': userId});
   }
 
   static Future<bool> isRunning() => FlutterBackgroundService().isRunning();
+  static Stream<Map<String, dynamic>?> get onFakeGpsDetected => FlutterBackgroundService().on('fakeGpsDetected');
 
-  static Stream<Map<String, dynamic>?> get onFakeGpsDetected =>
-      FlutterBackgroundService().on('fakeGpsDetected');
+  /// Baca status debug terakhir — dipakai UI untuk menampilkan panel diagnostik live.
+  static Future<Map<String, dynamic>?> getLastDebugStatus(String userId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('route_debug_$userId');
+    if (raw == null) return null;
+    try {
+      return jsonDecode(raw) as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
+  }
+}
+
+Future<void> _writeDebug(String userId, Map<String, dynamic> data) async {
+  final prefs = await SharedPreferences.getInstance();
+  data['written_at'] = DateTime.now().toIso8601String();
+  await prefs.setString('route_debug_$userId', jsonEncode(data));
 }
 
 @pragma('vm:entry-point')
 void _onStart(ServiceInstance service) async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  if (service is AndroidServiceInstance) {
-    service.setAsForegroundService();
-  }
+  if (service is AndroidServiceInstance) service.setAsForegroundService();
 
   Timer? locationTimer;
   String currentUserId = '';
-
-  Future<void> stopEverything({required bool fakeGps, double? fakeLat, double? fakeLng}) async {
-    locationTimer?.cancel();
-    locationTimer = null;
-
-    final prefs = await SharedPreferences.getInstance();
-    await _flushBuffer(currentUserId, prefs);
-
-    if (fakeGps) {
-      service.invoke('fakeGpsDetected', {'user_id': currentUserId});
-      try {
-        await http.post(
-          Uri.parse('${ApiConstant.baseUrl}/report_fake_gps.php'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'user_id': currentUserId, 'latitude': fakeLat, 'longitude': fakeLng}),
-        ).timeout(const Duration(seconds: 8));
-      } catch (_) {}
-    }
-
-    service.stopSelf();
-  }
+  DateTime? lastFakeGpsReport;
 
   Future<void> captureOnce() async {
     try {
       final pos = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 10),
+        timeLimit: const Duration(seconds: 12),
       );
 
       if (pos.isMocked) {
-        if (service is AndroidServiceInstance) {
-          service.setForegroundNotificationInfo(title: 'RKM — Dihentikan', content: 'Lokasi mencurigakan terdeteksi.');
+        // PENTING: JANGAN matikan service total lagi — cuma lewati titik ini
+        // dan tetap lanjut coba lagi di interval berikutnya. Mematikan total
+        // dulu jadi penyebab "sekali salah deteksi, tracking mati selamanya".
+        await _writeDebug(currentUserId, {
+          'lat': pos.latitude, 'lng': pos.longitude, 'is_mocked': true, 'sent_ok': false,
+          'error': 'Lokasi ditandai mocked oleh sistem Android, titik ini dilewati.',
+        });
+
+        final now = DateTime.now();
+        if (lastFakeGpsReport == null || now.difference(lastFakeGpsReport!).inMinutes >= 10) {
+          lastFakeGpsReport = now;
+          service.invoke('fakeGpsDetected', {'user_id': currentUserId});
+          try {
+            await http.post(
+              Uri.parse('${ApiConstant.baseUrl}/report_fake_gps.php'),
+              headers: {'Content-Type': 'application/json'},
+              body: jsonEncode({'user_id': currentUserId, 'latitude': pos.latitude, 'longitude': pos.longitude, 'context': 'route_tracking'}),
+            ).timeout(const Duration(seconds: 8));
+          } catch (_) {}
         }
-        await stopEverything(fakeGps: true, fakeLat: pos.latitude, fakeLng: pos.longitude);
         return;
       }
 
       await _appendPoint(currentUserId, pos);
       final prefs = await SharedPreferences.getInstance();
-      await _flushBuffer(currentUserId, prefs);
-    } catch (_) {}
+      final sendResult = await _flushBuffer(currentUserId, prefs);
+
+      await _writeDebug(currentUserId, {
+        'lat': pos.latitude, 'lng': pos.longitude, 'is_mocked': false,
+        'sent_ok': sendResult, 'error': sendResult ? null : 'Gagal mengirim ke server (cek koneksi internet HP).',
+      });
+    } catch (e) {
+      await _writeDebug(currentUserId, {'lat': null, 'lng': null, 'is_mocked': false, 'sent_ok': false, 'error': 'Gagal ambil lokasi: $e'});
+    }
   }
 
   service.on('startTracking').listen((data) async {
@@ -112,7 +121,12 @@ void _onStart(ServiceInstance service) async {
   });
 
   service.on('stopTracking').listen((data) async {
-    await stopEverything(fakeGps: false);
+    locationTimer?.cancel();
+    locationTimer = null;
+    final userId = data?['user_id'] as String? ?? currentUserId;
+    final prefs = await SharedPreferences.getInstance();
+    await _flushBuffer(userId, prefs);
+    service.stopSelf();
   });
 }
 
@@ -125,26 +139,29 @@ Future<void> _appendPoint(String userId, Position pos) async {
   await prefs.setStringList(key, buffer);
 }
 
-Future<void> _flushBuffer(String userId, SharedPreferences prefs) async {
+Future<bool> _flushBuffer(String userId, SharedPreferences prefs) async {
   final key = '${_bufferKey}_$userId';
   final buffer = prefs.getStringList(key) ?? [];
-  if (buffer.isEmpty) return;
+  if (buffer.isEmpty) return true;
 
   final token = prefs.getString('token') ?? '';
   final points = buffer.map((e) => jsonDecode(e) as Map<String, dynamic>).toList();
 
   try {
-    final response = await http
-        .post(
-          Uri.parse('${ApiConstant.baseUrl}${ApiConstant.routeTrack}'),
-          headers: {'Content-Type': 'application/json', if (token.isNotEmpty) 'Authorization': 'Bearer $token'},
-          body: jsonEncode({'user_id': userId, 'points': points}),
-        )
-        .timeout(const Duration(seconds: 10));
+    final response = await http.post(
+      Uri.parse('${ApiConstant.baseUrl}${ApiConstant.routeTrack}'),
+      headers: {'Content-Type': 'application/json', if (token.isNotEmpty) 'Authorization': 'Bearer $token'},
+      body: jsonEncode({'user_id': userId, 'points': points}),
+    ).timeout(const Duration(seconds: 12));
+
     if (response.statusCode >= 200 && response.statusCode < 300) {
       await prefs.remove(key);
+      return true;
     }
-  } catch (_) {}
+    return false;
+  } catch (_) {
+    return false;
+  }
 }
 
 @pragma('vm:entry-point')
