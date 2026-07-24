@@ -30,7 +30,25 @@ class BackgroundLocationHandler {
 
   static Future<void> start(String userId) async {
     final service = FlutterBackgroundService();
-    if (!await service.isRunning()) await service.startService();
+
+    if (!await service.isRunning()) {
+      await service.startService();
+    }
+
+    // FIX: tunggu isolate background benar-benar siap (maks 5 detik),
+    // baru kirim perintah startTracking. Kalau langsung invoke tanpa
+    // menunggu, perintah bisa "hilang" karena listener belum terpasang.
+    var attempts = 0;
+    while (!await service.isRunning() && attempts < 25) {
+      await Future.delayed(const Duration(milliseconds: 200));
+      attempts++;
+    }
+
+    service.invoke('startTracking', {'user_id': userId});
+    // Kirim ulang sekali lagi setelah jeda kecil sebagai jaring pengaman —
+    // aman dikirim dobel karena timer lama otomatis dibatalkan sebelum
+    // timer baru dibuat (lihat _onStart di bawah).
+    await Future.delayed(const Duration(milliseconds: 600));
     service.invoke('startTracking', {'user_id': userId});
   }
 
@@ -41,7 +59,6 @@ class BackgroundLocationHandler {
   static Future<bool> isRunning() => FlutterBackgroundService().isRunning();
   static Stream<Map<String, dynamic>?> get onFakeGpsDetected => FlutterBackgroundService().on('fakeGpsDetected');
 
-  /// Baca status debug terakhir — dipakai UI untuk menampilkan panel diagnostik live.
   static Future<Map<String, dynamic>?> getLastDebugStatus(String userId) async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString('route_debug_$userId');
@@ -71,22 +88,16 @@ void _onStart(ServiceInstance service) async {
 
   Future<void> captureOnce() async {
     try {
-      final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 12),
-      );
+      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high, timeLimit: const Duration(seconds: 12));
 
       if (pos.isMocked) {
-        // PENTING: JANGAN matikan service total lagi — cuma lewati titik ini
-        // dan tetap lanjut coba lagi di interval berikutnya. Mematikan total
-        // dulu jadi penyebab "sekali salah deteksi, tracking mati selamanya".
         await _writeDebug(currentUserId, {
           'lat': pos.latitude, 'lng': pos.longitude, 'is_mocked': true, 'sent_ok': false,
           'error': 'Lokasi ditandai mocked oleh sistem Android, titik ini dilewati.',
         });
 
         final now = DateTime.now();
-        if (lastFakeGpsReport == null || now.difference(lastFakeGpsReport!).inMinutes >= 10) {
+        if (lastFakeGpsReport == null || now.difference(lastFakeGpsReport!).inMinutes >= 5) {
           lastFakeGpsReport = now;
           service.invoke('fakeGpsDetected', {'user_id': currentUserId});
           try {
@@ -114,7 +125,8 @@ void _onStart(ServiceInstance service) async {
   }
 
   service.on('startTracking').listen((data) async {
-    currentUserId = data?['user_id'] as String? ?? '';
+    currentUserId = data?['user_id'] as String? ?? currentUserId;
+    if (currentUserId.isEmpty) return;
     locationTimer?.cancel();
     await captureOnce();
     locationTimer = Timer.periodic(const Duration(seconds: 15), (_) => captureOnce());
@@ -153,7 +165,6 @@ Future<bool> _flushBuffer(String userId, SharedPreferences prefs) async {
       headers: {'Content-Type': 'application/json', if (token.isNotEmpty) 'Authorization': 'Bearer $token'},
       body: jsonEncode({'user_id': userId, 'points': points}),
     ).timeout(const Duration(seconds: 12));
-
     if (response.statusCode >= 200 && response.statusCode < 300) {
       await prefs.remove(key);
       return true;
