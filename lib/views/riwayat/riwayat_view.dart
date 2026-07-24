@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../app/theme/app_colors.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/riwayat_provider.dart';
+import 'riwayat_detail_view.dart';
 
 class RiwayatView extends StatefulWidget {
   const RiwayatView({super.key});
@@ -51,49 +51,8 @@ class _RiwayatViewState extends State<RiwayatView> {
   }
 
   void _showDetail(Map<String, dynamic> item, bool showSales) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        margin: const EdgeInsets.all(12),
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (item['foto_url'] != null)
-              ClipRRect(borderRadius: BorderRadius.circular(14), child: Image.network(item['foto_url'], height: 220, width: double.infinity, fit: BoxFit.cover)),
-            const SizedBox(height: 16),
-            Row(children: [
-              Expanded(child: Text(item['member'] ?? '-', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
-              _statusBadge(item),
-            ]),
-            if (showSales) ...[
-              const SizedBox(height: 4),
-              Text('Sales: ${item['nama_sales'] ?? '-'}', style: const TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w600)),
-            ],
-            const SizedBox(height: 6),
-            Text(item['catatan'] ?? '-', style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-            const SizedBox(height: 10),
-            Text('Waktu: ${item['waktu'] ?? '-'}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-            if (item['latitude'] != null && item['longitude'] != null) ...[
-              const SizedBox(height: 14),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () async {
-                    final uri = Uri.parse('https://maps.google.com/?q=${item['latitude']},${item['longitude']}');
-                    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
-                  },
-                  icon: const Icon(Icons.map_outlined, size: 18),
-                  label: const Text('Buka di Peta'),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => RiwayatDetailView(item: item, showSales: showSales)),
     );
   }
 
