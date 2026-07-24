@@ -1,122 +1,74 @@
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
+import '../data/services/izin_sakit_service.dart';
 
 class IzinStatusProvider extends ChangeNotifier {
-  static const String _baseUrl = 'https://api.isreport.my.id/absen';
+  final IzinSakitService _service;
+  IzinStatusProvider(this._service);
 
-  String? _jenisAktif; // 'sakit' | 'istirahat' | null
-  String? _keterangan;
+  String? _jenisAktif;
   bool _isLoading = false;
+  String? _errorMessage;
 
   String? get jenisAktif => _jenisAktif;
-  String? get keterangan => _keterangan;
   bool get isLoading => _isLoading;
+  String? get errorMessage => _errorMessage;
 
-  Future<void> loadStatus(String userId) async {
-    if (userId.isEmpty) return;
-    try {
-      final response = await http
-          .post(
-            Uri.parse('$_baseUrl/izin_sakit_status.php'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'user_id': userId}),
-          )
-          .timeout(const Duration(seconds: 10));
-
-      final json = jsonDecode(response.body);
-      final data = json['data'] as Map<String, dynamic>?;
-      if (data != null && (data['is_active'] == true || data['is_active'] == 1)) {
-        _jenisAktif = data['jenis'] as String?;
-        _keterangan = data['keterangan'] as String?;
-      } else {
-        _jenisAktif = null;
-        _keterangan = null;
-      }
-      notifyListeners();
-    } catch (_) {
-      // Diamkan — biarkan status tetap seperti sebelumnya kalau gagal load.
-    }
-  }
-
-  Future<bool> start({
-    required String userId,
-    required String jenis,
-    required String keterangan,
-  }) async {
+  Future<bool> start({required String userId, required String jenis, required String keterangan}) async {
     _isLoading = true;
+    _errorMessage = null;
     notifyListeners();
 
     try {
-      double? lat;
-      double? lng;
-      try {
-        final pos = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.medium,
-          timeLimit: const Duration(seconds: 8),
-        );
-        lat = pos.latitude;
-        lng = pos.longitude;
-      } catch (_) {
-        // Lokasi opsional untuk fitur ini — tetap lanjut kalau gagal ambil.
+      // FIX: minta izin lokasi secara eksplisit dulu — sebelumnya kalau
+      // izin belum lengkap, Geolocator langsung throw dan error itu
+      // ditelan diam-diam tanpa pesan apa pun ke sales.
+      final permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        final requested = await Permission.locationWhenInUse.request();
+        if (!requested.isGranted) {
+          _errorMessage = 'Izin lokasi ditolak. Aktifkan izin lokasi di pengaturan HP untuk menggunakan fitur ini.';
+          _isLoading = false;
+          notifyListeners();
+          return false;
+        }
+      }
+      if (permission == LocationPermission.deniedForever) {
+        _errorMessage = 'Izin lokasi ditolak permanen. Buka Pengaturan HP > Aplikasi > RKM > Izin, aktifkan Lokasi.';
+        _isLoading = false;
+        notifyListeners();
+        return false;
       }
 
-      final response = await http
-          .post(
-            Uri.parse('$_baseUrl/izin_sakit_toggle.php'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'user_id': userId,
-              'action': 'start',
-              'jenis': jenis,
-              'keterangan': keterangan,
-              'latitude': lat?.toString() ?? '',
-              'longitude': lng?.toString() ?? '',
-            }),
-          )
-          .timeout(const Duration(seconds: 10));
-
-      final json = jsonDecode(response.body);
-      if (json['success'] == true) {
-        _jenisAktif = jenis;
-        _keterangan = keterangan;
-        return true;
-      }
-      return false;
-    } catch (_) {
-      return false;
-    } finally {
+      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high, timeLimit: const Duration(seconds: 12));
+      await _service.start(userId: userId, jenis: jenis, lat: pos.latitude, lng: pos.longitude, keterangan: keterangan);
+      _jenisAktif = jenis;
       _isLoading = false;
       notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = 'Gagal mengaktifkan: ${e.toString()}';
+      _isLoading = false;
+      notifyListeners();
+      return false;
     }
   }
 
   Future<bool> stop(String userId) async {
     _isLoading = true;
     notifyListeners();
-
     try {
-      final response = await http
-          .post(
-            Uri.parse('$_baseUrl/izin_sakit_toggle.php'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'user_id': userId, 'action': 'stop'}),
-          )
-          .timeout(const Duration(seconds: 10));
-
-      final json = jsonDecode(response.body);
-      if (json['success'] == true) {
-        _jenisAktif = null;
-        _keterangan = null;
-        return true;
-      }
-      return false;
-    } catch (_) {
-      return false;
-    } finally {
+      await _service.stop(userId);
+      _jenisAktif = null;
       _isLoading = false;
       notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = 'Gagal menonaktifkan: ${e.toString()}';
+      _isLoading = false;
+      notifyListeners();
+      return false;
     }
   }
 }
