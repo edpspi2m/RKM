@@ -11,6 +11,7 @@ import '../data/services/riwayat_service.dart';
 import '../data/services/location_share_service.dart';
 import '../data/services/otp_service.dart';
 import '../data/services/route_tracking_service.dart';
+import '../data/services/izin_sakit_service.dart';
 import '../data/repositories/auth_repository.dart';
 import '../data/repositories/kunjungan_repository.dart';
 import '../providers/auth_provider.dart';
@@ -23,7 +24,6 @@ import '../providers/location_share_provider.dart';
 import '../providers/otp_provider.dart';
 import '../providers/route_tracking_provider.dart';
 import '../providers/izin_status_provider.dart';
-import '../providers/potensial_get_provider.dart';
 import '../views/login/login_view.dart';
 import '../views/main_navigation_view.dart';
 
@@ -41,6 +41,7 @@ class RkmApp extends StatelessWidget {
     final locationShareService = LocationShareService(apiClient);
     final otpService = OtpService(apiClient);
     final routeTrackingService = RouteTrackingService(apiClient);
+    final izinSakitService = IzinSakitService(apiClient);
 
     return MultiProvider(
       providers: [
@@ -62,9 +63,10 @@ class RkmApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => RiwayatProvider(riwayatService)),
         ChangeNotifierProvider(create: (_) => LocationShareProvider(locationShareService)),
         ChangeNotifierProvider(create: (_) => OtpProvider(otpService)),
+        // PENTING: listener fake-GPS sekarang otomatis aktif di constructor,
+        // tidak perlu memanggil method tambahan apa pun lagi.
         ChangeNotifierProvider(create: (_) => RouteTrackingProvider(routeTrackingService)),
-        ChangeNotifierProvider(create: (_) => IzinStatusProvider()),
-        ChangeNotifierProvider(create: (_) => PotensialGetProvider()),
+        ChangeNotifierProvider(create: (_) => IzinStatusProvider(izinSakitService)),
       ],
       child: MaterialApp(
         title: 'RKM App',
@@ -82,15 +84,12 @@ class _StartupGate extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
-
     if (authProvider.isCheckingSession) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-
     if (authProvider.isAuthenticated) {
       return const MainNavigationView();
     }
-
     return const LoginView();
   }
 }
