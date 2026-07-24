@@ -11,7 +11,16 @@ const _bufferKey = 'route_point_buffer';
 
 class RouteTrackingProvider extends ChangeNotifier {
   final RouteTrackingService _service;
-  RouteTrackingProvider(this._service);
+
+  // FIX BUG UTAMA: listener dipasang LANGSUNG di constructor, bukan lewat
+  // method terpisah yang bisa lupa dipanggil. Sekarang dijamin selalu aktif
+  // begitu provider ini dibuat di app.dart.
+  RouteTrackingProvider(this._service) {
+    BackgroundLocationHandler.onFakeGpsDetected.listen((event) {
+      _fakeGpsDetected = true;
+      notifyListeners();
+    });
+  }
 
   bool _isTracking = false;
   bool _fakeGpsDetected = false;
@@ -22,14 +31,6 @@ class RouteTrackingProvider extends ChangeNotifier {
   bool get fakeGpsDetected => _fakeGpsDetected;
   bool get isValidating => _isValidating;
   Map<String, dynamic>? get debugStatus => _debugStatus;
-
-  RouteTrackingProvider withListener() {
-    BackgroundLocationHandler.onFakeGpsDetected.listen((event) {
-      _fakeGpsDetected = true;
-      notifyListeners();
-    });
-    return this;
-  }
 
   Future<void> checkInitialState() async {
     _isTracking = await BackgroundLocationHandler.isRunning();
@@ -65,6 +66,9 @@ class RouteTrackingProvider extends ChangeNotifier {
       return false;
     }
 
+    // FIX: tunggu service benar-benar aktif dulu sebelum kirim perintah
+    // startTracking — mencegah race condition "toggle ON tapi gak ada
+    // signal terkirim otomatis" karena isolate background belum siap.
     await BackgroundLocationHandler.start(userId);
     _isTracking = true;
     _isValidating = false;
