@@ -117,9 +117,28 @@ class _NotGetMapViewState extends State<NotGetMapView> with SingleTickerProvider
                                     markers: _withLokasi.map((item) {
                                       final lat = double.parse(item['latitude'].toString());
                                       final lng = double.parse(item['longitude'].toString());
+                                      final fotoUrl = item['foto_url'];
                                       return Marker(
-                                        point: LatLng(lat, lng), width: 40, height: 40,
-                                        child: GestureDetector(onTap: () => _showDetail(item), child: const Icon(Icons.location_on, color: AppColors.error, size: 36, shadows: [Shadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))])),
+                                        point: LatLng(lat, lng),
+                                        width: 50,
+                                        height: 50,
+                                        child: GestureDetector(
+                                          onTap: () => _showDetail(item),
+                                          child: Container(
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              border: Border.all(color: AppColors.error, width: 3),
+                                              color: Colors.white,
+                                              image: fotoUrl != null
+                                                  ? DecorationImage(image: NetworkImage(fotoUrl), fit: BoxFit.cover)
+                                                  : null,
+                                              boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))],
+                                            ),
+                                            child: fotoUrl == null
+                                                ? const Icon(Icons.cancel, color: AppColors.error, size: 24)
+                                                : null,
+                                          ),
+                                        ),
                                       );
                                     }).toList(),
                                   ),
