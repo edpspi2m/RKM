@@ -21,34 +21,52 @@ class IzinStatusProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // FIX: minta izin lokasi secara eksplisit dulu — sebelumnya kalau
-      // izin belum lengkap, Geolocator langsung throw dan error itu
-      // ditelan diam-diam tanpa pesan apa pun ke sales.
-      final permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        final requested = await Permission.locationWhenInUse.request();
-        if (!requested.isGranted) {
-          _errorMessage = 'Izin lokasi ditolak. Aktifkan izin lokasi di pengaturan HP untuk menggunakan fitur ini.';
-          _isLoading = false;
-          notifyListeners();
-          return false;
-        }
-      }
-      if (permission == LocationPermission.deniedForever) {
-        _errorMessage = 'Izin lokasi ditolak permanen. Buka Pengaturan HP > Aplikasi > RKM > Izin, aktifkan Lokasi.';
-        _isLoading = false;
-        notifyListeners();
+      final serviceStatus = await Geolocator.isLocationServiceEnabled();
+      if (!serviceStatus) {
+        _errorMessage = 'LANGKAH 1 GAGAL: GPS/Lokasi HP sedang mati. Nyalakan GPS di HP dulu.';
+        _isLoading = false; notifyListeners();
         return false;
       }
 
-      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high, timeLimit: const Duration(seconds: 12));
-      await _service.start(userId: userId, jenis: jenis, lat: pos.latitude, lng: pos.longitude, keterangan: keterangan);
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        final requested = await Permission.locationWhenInUse.request();
+        if (!requested.isGranted) {
+          _errorMessage = 'LANGKAH 2 GAGAL: Izin lokasi ditolak. Buka Pengaturan HP > Aplikasi > RKM > Izin > aktifkan Lokasi.';
+          _isLoading = false; notifyListeners();
+          return false;
+        }
+        permission = await Geolocator.checkPermission();
+      }
+      if (permission == LocationPermission.deniedForever) {
+        _errorMessage = 'LANGKAH 2 GAGAL: Izin lokasi ditolak permanen. Buka Pengaturan HP > Aplikasi > RKM > Izin, aktifkan manual.';
+        _isLoading = false; notifyListeners();
+        return false;
+      }
+
+      final Position pos;
+      try {
+        pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high, timeLimit: const Duration(seconds: 15));
+      } catch (e) {
+        _errorMessage = 'LANGKAH 3 GAGAL: Tidak bisa ambil koordinat GPS ($e). Coba di tempat terbuka (bukan dalam ruangan).';
+        _isLoading = false; notifyListeners();
+        return false;
+      }
+
+      try {
+        await _service.start(userId: userId, jenis: jenis, lat: pos.latitude, lng: pos.longitude, keterangan: keterangan);
+      } catch (e) {
+        _errorMessage = 'LANGKAH 4 GAGAL (server menolak): $e';
+        _isLoading = false; notifyListeners();
+        return false;
+      }
+
       _jenisAktif = jenis;
       _isLoading = false;
       notifyListeners();
       return true;
     } catch (e) {
-      _errorMessage = 'Gagal mengaktifkan: ${e.toString()}';
+      _errorMessage = 'ERROR TIDAK TERDUGA: $e';
       _isLoading = false;
       notifyListeners();
       return false;
@@ -65,7 +83,7 @@ class IzinStatusProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _errorMessage = 'Gagal menonaktifkan: ${e.toString()}';
+      _errorMessage = 'Gagal menonaktifkan: $e';
       _isLoading = false;
       notifyListeners();
       return false;
