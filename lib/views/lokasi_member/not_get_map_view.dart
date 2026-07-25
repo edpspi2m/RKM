@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import '../../app/theme/app_colors.dart';
 import '../../core/network/api_client.dart';
+import 'not_get_detail_view.dart';
 
 class NotGetMapView extends StatefulWidget {
   const NotGetMapView({super.key});
@@ -48,28 +49,8 @@ class _NotGetMapViewState extends State<NotGetMapView> with SingleTickerProvider
   List<Map<String, dynamic>> get _withLokasi => _data.where((d) => d['latitude'] != null && d['longitude'] != null).toList();
 
   void _showDetail(Map<String, dynamic> item) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (item['foto_url'] != null)
-              ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.network(item['foto_url'], height: 180, width: double.infinity, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(height: 180, color: AppColors.inputFill))),
-            const SizedBox(height: 14),
-            Text(item['member'] ?? '-', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 4),
-            Text('${item['kecamatan'] ?? '-'}, ${item['kota'] ?? '-'}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-            const SizedBox(height: 10),
-            Text('Alasan: ${item['catatan']?.toString().isNotEmpty == true ? item['catatan'] : '-'}', style: const TextStyle(fontSize: 13)),
-            const SizedBox(height: 6),
-            Text('Sales: ${item['nama_sales'] ?? '-'} • ${item['waktu']}', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-          ],
-        ),
-      ),
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => NotGetDetailView(item: item)),
     );
   }
 
