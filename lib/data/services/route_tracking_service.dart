@@ -16,9 +16,7 @@ class RouteTrackingService {
 
   Future<void> reportFakeGps({required String userId, required double lat, required double lng, required String context}) async {
     try {
-      await _apiClient.post('/report_fake_gps.php', body: {
-        'user_id': userId, 'latitude': lat.toString(), 'longitude': lng.toString(), 'context': context,
-      });
+      await _apiClient.post('/report_fake_gps.php', body: {'user_id': userId, 'latitude': lat.toString(), 'longitude': lng.toString(), 'context': context});
     } catch (_) {}
   }
 }
