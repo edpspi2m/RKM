@@ -1,64 +1,47 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
-import '../core/widgets/fake_gps_dialog.dart';
+import '../core/background/background_location_handler.dart';
 import '../data/models/route_point_model.dart';
 import '../data/services/route_tracking_service.dart';
 
 class RouteTrackingProvider extends ChangeNotifier {
   final RouteTrackingService _service;
-  RouteTrackingProvider(this._service);
+
+  RouteTrackingProvider(this._service) {
+    BackgroundLocationHandler.onFakeGpsDetected.listen((event) {
+      _fakeGpsDetected = true;
+      notifyListeners();
+    });
+  }
 
   bool _isTracking = false;
   bool _isValidating = false;
   bool _fakeGpsDetected = false;
-  Timer? _timer;
-  Map<String, dynamic>? _debugStatus;
-  int _successCount = 0;
-  int _failCount = 0;
+  Timer? _foregroundTimer;
 
   bool get isTracking => _isTracking;
   bool get isValidating => _isValidating;
   bool get fakeGpsDetected => _fakeGpsDetected;
-  Map<String, dynamic>? get debugStatus => _debugStatus;
-  int get successCount => _successCount;
-  int get failCount => _failCount;
 
   Future<void> checkInitialState() async {
-    // Sekarang status "tracking" murni disimpan di memori provider (foreground),
-    // jadi tidak perlu cek service eksternal lagi.
+    _isTracking = await BackgroundLocationHandler.isRunning();
     notifyListeners();
   }
 
-  Future<void> refreshDebugStatus(String userId) async {
-    notifyListeners();
-  }
-
-  Future<bool> _captureAndSend(String userId) async {
+  Future<void> _captureAndSendForeground(String userId) async {
     try {
       final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high, timeLimit: const Duration(seconds: 12));
-
       if (pos.isMocked) {
-        _debugStatus = {'lat': pos.latitude, 'lng': pos.longitude, 'is_mocked': true, 'sent_ok': false, 'error': 'Lokasi terdeteksi mocked, titik dilewati.', 'written_at': DateTime.now().toIso8601String()};
         _fakeGpsDetected = true;
-        _service.reportFakeGps(userId: userId, lat: pos.latitude, lng: pos.longitude, context: 'route_tracking');
         notifyListeners();
-        return false;
+        return;
       }
-
       await _service.submitPoints(userId: userId, points: [
         RoutePointModel(latitude: pos.latitude, longitude: pos.longitude, accuracy: pos.accuracy, capturedAt: DateTime.now()),
       ]);
-
-      _successCount++;
-      _debugStatus = {'lat': pos.latitude, 'lng': pos.longitude, 'is_mocked': false, 'sent_ok': true, 'error': null, 'written_at': DateTime.now().toIso8601String()};
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _failCount++;
-      _debugStatus = {'lat': null, 'lng': null, 'is_mocked': false, 'sent_ok': false, 'error': e.toString(), 'written_at': DateTime.now().toIso8601String()};
-      notifyListeners();
-      return false;
+    } catch (_) {
+      // Log diam-diam tanpa mengganggu UI — tidak ditampilkan sebagai panel lagi.
     }
   }
 
@@ -66,52 +49,56 @@ class RouteTrackingProvider extends ChangeNotifier {
     _isValidating = true;
     notifyListeners();
 
-    final firstOk = await _captureAndSend(userId);
-    _isValidating = false;
-
-    if (!firstOk && _fakeGpsDetected) {
+    try {
+      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high, timeLimit: const Duration(seconds: 10));
+      if (pos.isMocked) {
+        _isValidating = false;
+        _fakeGpsDetected = true;
+        notifyListeners();
+        _service.reportFakeGps(userId: userId, lat: pos.latitude, lng: pos.longitude, context: 'toggle_perjalanan');
+        return false;
+      }
+    } catch (_) {
+      _isValidating = false;
       notifyListeners();
       return false;
     }
 
+    // JALUR 1: timer di dalam app (foreground) — paling andal selama app terbuka/baru diminimize.
+    _foregroundTimer?.cancel();
+    _foregroundTimer = Timer.periodic(const Duration(seconds: 15), (_) => _captureAndSendForeground(userId));
+    await _captureAndSendForeground(userId);
+
+    // JALUR 2: background service — usaha terbaik supaya tetap jalan walau
+    // aplikasi ditutup total. Tidak dijamin 100% di semua HP (tergantung
+    // battery optimizer masing-masing merk), tapi tetap dicoba sebagai
+    // jalur cadangan di samping jalur 1.
+    await BackgroundLocationHandler.start(userId);
+
     _isTracking = true;
-    _successCount = firstOk ? 1 : 0;
-    _failCount = firstOk ? 0 : 1;
+    _isValidating = false;
     notifyListeners();
-
-    // Timer FOREGROUND — jalan selama app terbuka/di-background baru-baru ini.
-    // Ini pengganti flutter_background_service yang terbukti tidak stabil.
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 15), (_) async {
-      if (_fakeGpsDetected) return; // sudah dihentikan karena fake GPS
-      await _captureAndSend(userId);
-    });
-
     return true;
   }
 
   Future<void> stopTracking(String userId) async {
-    _timer?.cancel();
-    _timer = null;
+    _foregroundTimer?.cancel();
+    _foregroundTimer = null;
+    await BackgroundLocationHandler.stop(userId);
     _isTracking = false;
     notifyListeners();
   }
 
   void clearFakeGpsFlag() {
     _fakeGpsDetected = false;
-    _isTracking = false;
-    _timer?.cancel();
-    _timer = null;
     notifyListeners();
   }
 
-  Future<void> uploadPendingPoints(String userId) async {
-    // Tidak diperlukan lagi karena tidak ada buffer offline di pendekatan baru ini.
-  }
+  Future<void> uploadPendingPoints(String userId) async {}
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _foregroundTimer?.cancel();
     super.dispose();
   }
 }
