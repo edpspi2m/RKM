@@ -6,7 +6,7 @@ import '../../app/theme/app_colors.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/loading_overlay.dart';
 import '../../core/widgets/fake_gps_dialog.dart';
-import '../../core/widgets/kediri_area_picker.dart';
+import '../../core/network/api_client.dart';
 import '../../data/models/member_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/kunjungan_provider.dart';
@@ -31,14 +31,16 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
   bool _isNotGet = false;
   String _manualMemberName = '';
 
+  List<Map<String, dynamic>> _kecamatanOptions = [];
+  List<String> _desaOptions = [];
+  bool _kecamatanLoaded = false;
+
   @override
   void initState() {
     super.initState();
     if (widget.selectedMember != null) {
       _namaTokoController.text = widget.selectedMember!.nama;
     } else {
-      // PENTING: pastikan daftar member sudah dimuat walau masuk dari tombol Home,
-      // bukan dari tab Member — ini root cause dropdown autocomplete tidak muncul.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final userId = context.read<AuthProvider>().user?.id ?? '';
         context.read<MemberProvider>().load(userId);
@@ -86,6 +88,126 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
           ? _namaTokoController.text.trim()
           : _manualMemberName.trim();
 
+  Future<void> _loadKecamatanOptions() async {
+    if (_kecamatanLoaded) return;
+    try {
+      final response = await context.read<ApiClient>().post('/kecamatan_list.php', body: {});
+      _kecamatanOptions = (response['data'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+      _kecamatanLoaded = true;
+    } catch (_) {}
+  }
+
+  Future<void> _loadDesaOptions(String kecamatan) async {
+    try {
+      final response = await context.read<ApiClient>().post('/village_list.php', body: {'kecamatan': kecamatan});
+      final data = (response['data'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+      setState(() => _desaOptions = data.map((d) => d['desa'].toString()).toList());
+    } catch (_) {
+      setState(() => _desaOptions = []);
+    }
+  }
+
+  Widget _buildKecamatanField() {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadKecamatanOptions());
+
+    return Autocomplete<String>(
+      initialValue: TextEditingValue(text: _kecamatanController.text),
+      optionsBuilder: (TextEditingValue value) {
+        if (value.text.trim().isEmpty) return const Iterable<String>.empty();
+        final query = value.text.toLowerCase();
+        return _kecamatanOptions.map((e) => e['kecamatan'].toString()).where((k) => k.toLowerCase().contains(query));
+      },
+      onSelected: (selected) {
+        _kecamatanController.text = selected;
+        final match = _kecamatanOptions.firstWhere((e) => e['kecamatan'] == selected, orElse: () => {});
+        if (match.isNotEmpty && match['kota'] != null) _kotaController.text = match['kota'];
+        _loadDesaOptions(selected);
+      },
+      fieldViewBuilder: (context, controller, focusNode, onSubmit) {
+        controller.text = _kecamatanController.text;
+        return TextField(
+          controller: controller,
+          focusNode: focusNode,
+          onChanged: (v) => _kecamatanController.text = v,
+          decoration: InputDecoration(
+            labelText: 'Kecamatan',
+            hintText: 'Ketik untuk cari / boleh ketik bebas...',
+            filled: true, fillColor: AppColors.inputFill,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+          ),
+        );
+      },
+      optionsViewBuilder: (context, onSelected, options) {
+        return Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            elevation: 4,
+            borderRadius: BorderRadius.circular(10),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 200, minWidth: 280),
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                shrinkWrap: true,
+                itemCount: options.length,
+                itemBuilder: (context, index) {
+                  final option = options.elementAt(index);
+                  return ListTile(dense: true, title: Text(option, style: const TextStyle(fontSize: 13)), onTap: () => onSelected(option));
+                },
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDesaField() {
+    return Autocomplete<String>(
+      key: ValueKey(_kecamatanController.text),
+      optionsBuilder: (TextEditingValue value) {
+        if (value.text.trim().isEmpty) return const Iterable<String>.empty();
+        final query = value.text.toLowerCase();
+        return _desaOptions.where((d) => d.toLowerCase().contains(query));
+      },
+      onSelected: (selected) => _kelurahanController.text = selected,
+      fieldViewBuilder: (context, controller, focusNode, onSubmit) {
+        controller.text = _kelurahanController.text;
+        return TextField(
+          controller: controller,
+          focusNode: focusNode,
+          onChanged: (v) => _kelurahanController.text = v,
+          decoration: InputDecoration(
+            labelText: 'Desa / Kelurahan',
+            hintText: _desaOptions.isEmpty ? 'Pilih kecamatan dulu / ketik bebas' : 'Ketik untuk cari / boleh ketik bebas...',
+            filled: true, fillColor: AppColors.inputFill,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+          ),
+        );
+      },
+      optionsViewBuilder: (context, onSelected, options) {
+        return Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            elevation: 4,
+            borderRadius: BorderRadius.circular(10),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 200, minWidth: 280),
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                shrinkWrap: true,
+                itemCount: options.length,
+                itemBuilder: (context, index) {
+                  final option = options.elementAt(index);
+                  return ListTile(dense: true, title: Text(option, style: const TextStyle(fontSize: 13)), onTap: () => onSelected(option));
+                },
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _kirim(KunjunganProvider provider) async {
     if (_namaToko.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -108,7 +230,6 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
       kelurahan: _isNotGet ? _kelurahanController.text.trim() : '',
       kecamatan: _isNotGet ? _kecamatanController.text.trim() : '',
       kota: _isNotGet ? _kotaController.text.trim() : '',
-      // ❌ fromMemberList dihapus karena tidak ada di parameter method kirim()
     );
 
     if (!mounted) return;
@@ -294,7 +415,6 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
                         borderSide: BorderSide.none)),
               ),
 
-              // Checkbox "Not Get" HANYA muncul kalau input manual
               if (widget.selectedMember == null) ...[
                 const SizedBox(height: 16),
                 Container(
@@ -328,10 +448,21 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
                           fontWeight: FontWeight.w600,
                           color: AppColors.error)),
                   const SizedBox(height: 8),
-                  KediriAreaPicker(
-                    kelurahanController: _kelurahanController,
-                    kecamatanController: _kecamatanController,
-                    kotaController: _kotaController,
+                  _buildKecamatanField(),
+                  const SizedBox(height: 10),
+                  _buildDesaField(),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: _kotaController,
+                    decoration: InputDecoration(
+                      labelText: 'Kota / Kabupaten',
+                      filled: true,
+                      fillColor: AppColors.inputFill,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
                   ),
                 ],
               ],
