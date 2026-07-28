@@ -1,11 +1,11 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
-import 'package:provider/provider.dart';
 import '../../app/theme/app_colors.dart';
-import '../../core/network/api_client.dart';
-import '../../data/models/member_model.dart';
-import '../../providers/auth_provider.dart';
+import '../../core/constants/api_constant.dart';
+import 'not_get_detail_view.dart';
 
 class NotGetMapView extends StatefulWidget {
   const NotGetMapView({super.key});
@@ -15,19 +15,18 @@ class NotGetMapView extends StatefulWidget {
 }
 
 class _NotGetMapViewState extends State<NotGetMapView> with SingleTickerProviderStateMixin {
-  final MapController _mapController = MapController();
+  List<Map<String, dynamic>> _data = [];
+  bool _loading = true;
+  String? _error;
+  int? _httpStatusCode;
+  bool _satelit = false;
   late TabController _tabController;
-  List<MemberModel> _notGetMembers = [];
-  bool _isLoading = true;
-  bool _satelit = false; // <-- STATE SATELIT
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadData();
-    });
+    _load();
   }
 
   @override
@@ -36,74 +35,56 @@ class _NotGetMapViewState extends State<NotGetMapView> with SingleTickerProvider
     super.dispose();
   }
 
-  Future<void> _loadData() async {
-    setState(() => _isLoading = true);
-    try {
-      final userId = context.read<AuthProvider>().user?.id ?? '';
-      final apiClient = context.read<ApiClient>();
-      
-      // Sesuaikan endpoint API dengan backend kamu
-      final response = await apiClient.post('/get_not_get_members.php', body: {
-        'user_id': userId,
-      });
+  Future<void> _load() async {
+    setState(() { _loading = true; _error = null; _httpStatusCode = null; });
 
-      if (response['status'] == 'success') {
-        final List<dynamic> data = response['data'] ?? [];
+    try {
+      // Panggil LANGSUNG via http (bukan lewat wrapper) supaya kalau ada
+      // masalah, status code & body mentah kelihatan jelas, tidak
+      // disamarkan jadi "list kosong" oleh lapisan lain.
+      final response = await http.post(
+        Uri.parse('${ApiConstant.baseUrl}/not_get_list.php'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({}),
+      ).timeout(const Duration(seconds: 15));
+
+      _httpStatusCode = response.statusCode;
+
+      if (response.statusCode != 200) {
         setState(() {
-          _notGetMembers = data.map((e) => MemberModel.fromJson(e)).toList()
-            ..removeWhere((m) => m.latitude == null || m.longitude == null); // Hanya ambil yang ada koordinatnya
+          _loading = false;
+          _error = 'Server merespon status ${response.statusCode}.\nIsi respons: ${response.body.substring(0, response.body.length > 300 ? 300 : response.body.length)}';
         });
+        return;
       }
+
+      final Map<String, dynamic> json;
+      try {
+        json = jsonDecode(response.body) as Map<String, dynamic>;
+      } catch (e) {
+        setState(() {
+          _loading = false;
+          _error = 'Respons server BUKAN JSON valid (kemungkinan ada teks/error PHP nyempil).\nAwal respons: ${response.body.substring(0, response.body.length > 300 ? 300 : response.body.length)}';
+        });
+        return;
+      }
+
+      if (json['success'] != true) {
+        setState(() { _loading = false; _error = 'Server: ${json['message'] ?? 'gagal tanpa pesan'}'; });
+        return;
+      }
+
+      final list = (json['data'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+      setState(() { _data = list; _loading = false; });
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Gagal memuat data member not get.')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      setState(() { _loading = false; _error = 'Gagal konek ke server: $e'; });
     }
   }
 
-  void _showMemberDetail(MemberModel m) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.cancel, color: AppColors.error),
-                const SizedBox(width: 8),
-                Text(m.nama, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text('Kode: ${m.kodeMember} • Kota: ${m.kota ?? '-'}', 
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)
-            ),
-            const Divider(height: 24),
-            const Text('Status: Belum Dikunjungi (Not Get)', style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Tutup'),
-              ),
-            )
-          ],
-        ),
-      ),
-    );
+  List<Map<String, dynamic>> get _withLokasi => _data.where((d) => d['latitude'] != null && d['longitude'] != null).toList();
+
+  void _showDetail(Map<String, dynamic> item) {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => NotGetDetailView(item: item)));
   }
 
   @override
@@ -113,107 +94,103 @@ class _NotGetMapViewState extends State<NotGetMapView> with SingleTickerProvider
       appBar: AppBar(
         title: const Text('Member Not Get'),
         actions: [
-          IconButton(
-            icon: Icon(_satelit ? Icons.map_outlined : Icons.satellite_alt_outlined),
-            tooltip: _satelit ? 'Tampilan Peta Biasa' : 'Tampilan Satelit',
-            onPressed: () => setState(() => _satelit = !_satelit), // <-- TOGGLE SATELIT
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadData,
-          ),
+          IconButton(icon: Icon(_satelit ? Icons.map_outlined : Icons.satellite_alt_outlined), onPressed: () => setState(() => _satelit = !_satelit)),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          indicatorColor: Colors.white,
-          tabs: const [
-            Tab(icon: Icon(Icons.map), text: 'Peta'),
-            Tab(icon: Icon(Icons.list), text: 'Daftar'),
-          ],
-        ),
+        bottom: TabBar(controller: _tabController, tabs: const [Tab(text: 'Peta'), Tab(text: 'Daftar')]),
       ),
-      body: _isLoading
+      body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-              controller: _tabController,
-              children: [
-                // TAB 1: PETA
-                _notGetMembers.isEmpty
-                    ? const Center(child: Text('Tidak ada member dengan status Not Get.'))
-                    : FlutterMap(
-                        mapController: _mapController,
-                        options: MapOptions(
-                          initialCenter: LatLng(
-                            _notGetMembers.first.latitude!,
-                            _notGetMembers.first.longitude!
-                          ),
-                          initialZoom: 12,
-                        ),
-                        children: [
-                          _satelit // <-- IMPLEMENTASI TILE SATELIT
-                              ? TileLayer(
-                                  urlTemplate: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-                                  userAgentPackageName: 'com.rkm.app',
-                                )
-                              : TileLayer(
-                                  urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                                  subdomains: const ['a', 'b', 'c'],
-                                  userAgentPackageName: 'com.rkm.app',
-                                ),
-                          MarkerLayer(
-                            markers: _notGetMembers.map((m) {
-                              return Marker(
-                                point: LatLng(m.latitude!, m.longitude!),
-                                width: 40,
-                                height: 40,
-                                child: GestureDetector(
-                                  onTap: () => _showMemberDetail(m),
-                                  child: const Icon(
-                                    Icons.location_on, 
-                                    color: AppColors.error, 
-                                    size: 40,
-                                    shadows: [Shadow(color: Colors.black45, blurRadius: 4, offset: Offset(0, 2))]
+          : _error != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.error_outline, color: AppColors.error, size: 40),
+                        const SizedBox(height: 12),
+                        const Text('Gagal memuat data (ERROR, bukan kosong)', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 8),
+                        Text(_error!, textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                        const SizedBox(height: 16),
+                        ElevatedButton(onPressed: _load, child: const Text('Coba Lagi')),
+                      ],
+                    ),
+                  ),
+                )
+              : _data.isEmpty
+                  ? const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('Data kosong (server menjawab benar, memang belum ada laporan Not Get).', textAlign: TextAlign.center)))
+                  : TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _withLokasi.isEmpty
+                            ? const Center(child: Text('Data ada, tapi belum ada koordinat lokasi.'))
+                            : FlutterMap(
+                                options: MapOptions(initialCenter: LatLng(double.parse(_withLokasi.first['latitude'].toString()), double.parse(_withLokasi.first['longitude'].toString())), initialZoom: 11),
+                                children: [
+                                  _satelit
+                                      ? TileLayer(urlTemplate: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', userAgentPackageName: 'com.rkm.app')
+                                      : TileLayer(urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', subdomains: const ['a', 'b', 'c'], userAgentPackageName: 'com.rkm.app'),
+                                  MarkerLayer(
+                                    markers: _withLokasi.map((item) {
+                                      final lat = double.tryParse(item['latitude'].toString()) ?? 0;
+                                      final lng = double.tryParse(item['longitude'].toString()) ?? 0;
+                                      final fotoUrl = item['foto_url'];
+                                      return Marker(
+                                        point: LatLng(lat, lng), width: 50, height: 50,
+                                        child: GestureDetector(
+                                          onTap: () => _showDetail(item),
+                                          child: Container(
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle, border: Border.all(color: AppColors.error, width: 3), color: Colors.white,
+                                              image: fotoUrl != null ? DecorationImage(image: NetworkImage(fotoUrl), fit: BoxFit.cover) : null,
+                                              boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))],
+                                            ),
+                                            child: fotoUrl == null ? const Icon(Icons.cancel, color: AppColors.error, size: 24) : null,
+                                          ),
+                                        ),
+                                      );
+                                    }).toList(),
                                   ),
+                                ],
+                              ),
+                        ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _data.length,
+                          itemBuilder: (context, index) {
+                            final item = _data[index];
+                            return GestureDetector(
+                              onTap: () => _showDetail(item),
+                              child: Container(
+                                margin: const EdgeInsets.only(bottom: 10),
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.error.withOpacity(0.2))),
+                                child: Row(
+                                  children: [
+                                    if (item['foto_url'] != null)
+                                      ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network(item['foto_url'], width: 48, height: 48, fit: BoxFit.cover))
+                                    else
+                                      Container(width: 48, height: 48, decoration: BoxDecoration(color: AppColors.error.withOpacity(0.1), borderRadius: BorderRadius.circular(8)), child: const Icon(Icons.cancel_outlined, color: AppColors.error)),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(item['member'] ?? '-', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                          Text('${item['kecamatan'] ?? '-'}, ${item['kota'] ?? '-'}', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                                          Text('Sales: ${item['nama_sales'] ?? '-'}', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              );
-                            }).toList(),
-                          ),
-                        ],
-                      ),
-                
-                // TAB 2: DAFTAR
-                _notGetMembers.isEmpty
-                    ? const Center(child: Text('Tidak ada member dengan status Not Get.'))
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _notGetMembers.length,
-                        itemBuilder: (context, index) {
-                          final m = _notGetMembers[index];
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            child: ListTile(
-                              leading: const CircleAvatar(
-                                backgroundColor: Color(0xFFFEE2E2),
-                                child: Icon(Icons.cancel, color: AppColors.error),
                               ),
-                              title: Text(m.nama, style: const TextStyle(fontWeight: FontWeight.bold)),
-                              subtitle: Text('${m.kodeMember} • ${m.kota ?? '-'}'),
-                              trailing: IconButton(
-                                icon: const Icon(Icons.location_searching, color: Colors.blue),
-                                onPressed: () {
-                                  _tabController.animateTo(0);
-                                  _mapController.move(LatLng(m.latitude!, m.longitude!), 16.0);
-                                },
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-              ],
-            ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
     );
   }
 }
