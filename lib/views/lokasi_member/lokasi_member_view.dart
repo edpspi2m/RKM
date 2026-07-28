@@ -29,6 +29,7 @@ class _LokasiMemberViewState extends State<LokasiMemberView> {
   double? _distanceMeters;
   Timer? _distanceTimer;
   final MapController _mapController = MapController();
+  bool _satelit = false; // <-- STATE SATELIT DITAMBAHKAN
 
   @override
   void initState() {
@@ -214,7 +215,16 @@ class _LokasiMemberViewState extends State<LokasiMemberView> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Lokasi Member')),
+      appBar: AppBar(
+        title: const Text('Lokasi Member'),
+        actions: [
+          IconButton(
+            icon: Icon(_satelit ? Icons.map_outlined : Icons.satellite_alt_outlined),
+            tooltip: _satelit ? 'Tampilan Peta Biasa' : 'Tampilan Satelit',
+            onPressed: () => setState(() => _satelit = !_satelit),
+          ),
+        ],
+      ),
       body: memberProvider.state == MemberState.loading
           ? const Center(child: CircularProgressIndicator())
           : allMembers.isEmpty
@@ -225,7 +235,9 @@ class _LokasiMemberViewState extends State<LokasiMemberView> {
                       mapController: _mapController,
                       options: MapOptions(initialCenter: LatLng(allMembers.first.latitude!, allMembers.first.longitude!), initialZoom: 12),
                       children: [
-                        TileLayer(urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', subdomains: const ['a', 'b', 'c'], userAgentPackageName: 'com.rkm.app'),
+                        _satelit
+                            ? TileLayer(urlTemplate: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', userAgentPackageName: 'com.rkm.app')
+                            : TileLayer(urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', subdomains: const ['a', 'b', 'c'], userAgentPackageName: 'com.rkm.app'),
                         if (_routePoints != null) PolylineLayer(polylines: [Polyline(points: _routePoints!, strokeWidth: 5, color: _kBlue)]),
                         MarkerLayer(
                           markers: visibleMembers.map((m) {
