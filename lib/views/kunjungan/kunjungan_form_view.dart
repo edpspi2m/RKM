@@ -30,6 +30,7 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
   final _picker = ImagePicker();
   bool _isNotGet = false;
   String _manualMemberName = '';
+  final DateTime _startTime = DateTime.now();
 
   List<Map<String, dynamic>> _kecamatanOptions = [];
   List<String> _desaOptions = [];
@@ -230,6 +231,7 @@ class _KunjunganFormViewState extends State<KunjunganFormView> {
       kelurahan: _isNotGet ? _kelurahanController.text.trim() : '',
       kecamatan: _isNotGet ? _kecamatanController.text.trim() : '',
       kota: _isNotGet ? _kotaController.text.trim() : '',
+      durasiMenit: DateTime.now().difference(_startTime).inMinutes,
     );
 
     if (!mounted) return;
