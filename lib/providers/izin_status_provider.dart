@@ -46,7 +46,7 @@ class IzinStatusProvider extends ChangeNotifier {
 
       final Position pos;
       try {
-        pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high, timeLimit: const Duration(seconds: 15));
+        pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.medium, timeLimit: const Duration(seconds: 8));
       } catch (e) {
         _errorMessage = 'LANGKAH 3 GAGAL: Tidak bisa ambil koordinat GPS ($e). Coba di tempat terbuka (bukan dalam ruangan).';
         _isLoading = false; notifyListeners();
