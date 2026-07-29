@@ -32,7 +32,7 @@ class LocationService {
 
     // ====== Validasi ketat: tolak jika lokasi palsu ======
     if (pos.isMocked) {
-      await _reportFakeGps(pos, 'foto_kunjungan');
+      await _lockAccountForFakeGps(pos, 'foto_kunjungan');
       throw Exception('GPS tidak valid, coba lagi.');
     }
 
@@ -58,31 +58,16 @@ class LocationService {
     );
   }
 
-  /// Kirim laporan fake GPS ke server (diteruskan ke Telegram).
-  /// Best-effort — tidak boleh menghambat/menggagalkan alur utama app kalau
-  /// gagal kirim (misal tidak ada internet).
-  Future<void> _reportFakeGps(Position pos, String context) async {
+  Future<void> _lockAccountForFakeGps(Position pos, String context) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getString('user_id') ?? '';
-      final nama = prefs.getString('nama') ?? '';
       if (userId.isEmpty) return;
-
-      await http
-          .post(
-            Uri.parse('https://api.isreport.my.id/absen/report_fake_gps.php'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'user_id': userId,
-              'nama_sales': nama,
-              'latitude': pos.latitude,
-              'longitude': pos.longitude,
-              'context': context,
-            }),
-          )
-          .timeout(const Duration(seconds: 8));
-    } catch (_) {
-      // Diamkan — laporan gagal tidak boleh mengganggu alur utama.
-    }
+      await http.post(
+        Uri.parse('https://api.isreport.my.id/absen/auto_lock_fake_gps.php'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'user_id': userId, 'latitude': pos.latitude, 'longitude': pos.longitude, 'context': context}),
+      ).timeout(const Duration(seconds: 8));
+    } catch (_) {}
   }
 }
