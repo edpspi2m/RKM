@@ -131,7 +131,6 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      // ====== HAMBURGER DRAWER — menggantikan icon numpuk di header ======
       endDrawer: Drawer(
         child: SafeArea(
           child: Column(
@@ -213,7 +212,7 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
             children: [
               Container(
                 padding: const EdgeInsets.fromLTRB(20, 20, 12, 24),
-                decoration: const BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.only(bottomLeft: Radius.circular(24), bottomRight: Radius.circular(24))),
+                decoration: const BoxDecoration(gradient: AppColors.primaryGradient, borderRadius: BorderRadius.only(bottomLeft: Radius.circular(28), bottomRight: Radius.circular(28))),
                 child: Row(
                   children: [
                     Expanded(
@@ -226,7 +225,6 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                         ],
                       ),
                     ),
-                    // Indikator kecil kalau status Sakit/Istirahat lagi aktif
                     if (izinProvider.jenisAktif != null)
                       Container(
                         margin: const EdgeInsets.only(right: 6),
@@ -330,14 +328,14 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                     Expanded(
                       child: Container(
                         padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.divider)),
+                        decoration: BoxDecoration(gradient: AppColors.actionGradient, borderRadius: BorderRadius.circular(14)),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.storefront, color: AppColors.action, size: 22),
+                            const Icon(Icons.storefront, color: Colors.white, size: 22),
                             const SizedBox(height: 8),
-                            Text('${memberProvider.members.where((m) => m.sudahKunjungan).length}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                            const Text('Kunjungan Hari Ini', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                            Text('${memberProvider.members.where((m) => m.sudahKunjungan).length}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+                            const Text('Kunjungan Hari Ini', style: TextStyle(fontSize: 11, color: Colors.white70)),
                           ],
                         ),
                       ),
