@@ -126,8 +126,17 @@ class _RiwayatViewState extends State<RiwayatView> {
                                     const SizedBox(height: 2),
                                     if (provider.isAllMode)
                                       Text('Sales: ${item['nama_sales'] ?? '-'}', style: const TextStyle(color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.w600))
-                                    else
+                                    else ...[
                                       Text(item['catatan'] ?? '-', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                      if (item['durasi_menit'] != null) ...[
+                                        const SizedBox(height: 2),
+                                        Row(children: [
+                                          const Icon(Icons.timer_outlined, size: 11, color: AppColors.action),
+                                          const SizedBox(width: 3),
+                                          Text('${item['durasi_menit']} menit', style: const TextStyle(fontSize: 10, color: AppColors.action, fontWeight: FontWeight.w600)),
+                                        ]),
+                                      ],
+                                    ],
                                   ],
                                 ),
                               ),
