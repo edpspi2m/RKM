@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import '../core/background/background_location_handler.dart';
@@ -24,6 +26,16 @@ class RouteTrackingProvider extends ChangeNotifier {
   bool get isValidating => _isValidating;
   bool get fakeGpsDetected => _fakeGpsDetected;
 
+  Future<void> _lockAccount(String userId, double lat, double lng, String ctx) async {
+    try {
+      await http.post(
+        Uri.parse('https://api.isreport.my.id/absen/auto_lock_fake_gps.php'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'user_id': userId, 'latitude': lat, 'longitude': lng, 'context': ctx}),
+      ).timeout(const Duration(seconds: 8));
+    } catch (_) {}
+  }
+
   Future<void> checkInitialState() async {
     _isTracking = await BackgroundLocationHandler.isRunning();
     notifyListeners();
@@ -35,6 +47,7 @@ class RouteTrackingProvider extends ChangeNotifier {
       if (pos.isMocked) {
         _fakeGpsDetected = true;
         notifyListeners();
+        _lockAccount(userId, pos.latitude, pos.longitude, 'route_tracking');
         return;
       }
       await _service.submitPoints(userId: userId, points: [
@@ -55,7 +68,7 @@ class RouteTrackingProvider extends ChangeNotifier {
         _isValidating = false;
         _fakeGpsDetected = true;
         notifyListeners();
-        _service.reportFakeGps(userId: userId, lat: pos.latitude, lng: pos.longitude, context: 'toggle_perjalanan');
+        _lockAccount(userId, pos.latitude, pos.longitude, 'toggle_perjalanan');
         return false;
       }
     } catch (_) {
