@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:geolocator/geolocator.dart';
 import '../app/theme/app_colors.dart';
 import '../core/network/api_client.dart';
 import '../core/widgets/fake_gps_dialog.dart';
+import '../core/widgets/global_fake_gps_blocker.dart';
 import '../providers/auth_provider.dart';
 import '../providers/route_tracking_provider.dart';
 import 'home/kunjungan_home_view.dart';
@@ -20,10 +22,11 @@ class MainNavigationView extends StatefulWidget {
   State<MainNavigationView> createState() => _MainNavigationViewState();
 }
 
-class _MainNavigationViewState extends State<MainNavigationView> {
+class _MainNavigationViewState extends State<MainNavigationView> with WidgetsBindingObserver {
   int _currentIndex = 0;
   Timer? _statusTimer;
   bool _showingLock = false;
+  bool _fakeGpsBlocked = false;
 
   final List<Widget> _pages = const [
     KunjunganHomeView(),
@@ -36,14 +39,37 @@ class _MainNavigationViewState extends State<MainNavigationView> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _statusTimer = Timer.periodic(const Duration(seconds: 45), (_) => _checkStatus());
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkStatus());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkStatus();
+      _checkFakeGps();
+    });
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _statusTimer?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Setiap kali app dibuka lagi/di-resume, cek ulang — sales gak bisa
+    // "kabur sebentar" matiin fake GPS pas buka app lalu nyalain lagi.
+    if (state == AppLifecycleState.resumed) {
+      _checkFakeGps();
+    }
+  }
+
+  Future<void> _checkFakeGps() async {
+    try {
+      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.medium, timeLimit: const Duration(seconds: 8));
+      if (pos.isMocked && mounted) {
+        setState(() => _fakeGpsBlocked = true);
+      }
+    } catch (_) {}
   }
 
   Future<void> _checkStatus() async {
@@ -80,6 +106,10 @@ class _MainNavigationViewState extends State<MainNavigationView> {
 
   @override
   Widget build(BuildContext context) {
+    if (_fakeGpsBlocked) {
+      return GlobalFakeGpsBlocker(onCleared: () => setState(() => _fakeGpsBlocked = false));
+    }
+
     final routeProvider = context.watch<RouteTrackingProvider>();
     if (routeProvider.fakeGpsDetected) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
