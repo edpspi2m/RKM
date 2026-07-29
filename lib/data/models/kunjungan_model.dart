@@ -10,11 +10,13 @@ class KunjunganModel {
   final String kecamatan;
   final String kota;
   final bool fromMemberList;
+  final int? durasiMenit;
 
   const KunjunganModel({
     required this.userId, required this.member, required this.catatan, required this.lokasi,
     this.statusKunjungan = 'berhasil', this.kelurahan = '', this.kecamatan = '', this.kota = '',
     this.fromMemberList = false,
+    this.durasiMenit,
   });
 
   Map<String, String> toFields() => {
@@ -25,5 +27,6 @@ class KunjunganModel {
     if (kelurahan.isNotEmpty) 'kelurahan': kelurahan,
     if (kecamatan.isNotEmpty) 'kecamatan': kecamatan,
     if (kota.isNotEmpty) 'kota': kota,
+    if (durasiMenit != null) 'durasi_menit': durasiMenit.toString(),
   };
 }
