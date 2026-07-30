@@ -3,13 +3,13 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  static const Color actionText = Color(0xFF00754F);
   static const Color primary = Color(0xFF0D47A1);
   static const Color primaryDark = Color(0xFF08306B);
   static const Color primaryLight = Color(0xFFEAF1FC);
 
   static const Color action = Color(0xFF00A876);
   static const Color actionLight = Color(0xFFE3F7EF);
+  static const Color actionText = Color(0xFF00754F);
 
   static const Color background = Color(0xFFF4F7FA);
   static const Color surface = Colors.white;
