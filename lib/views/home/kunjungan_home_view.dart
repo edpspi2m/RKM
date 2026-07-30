@@ -130,29 +130,22 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
     );
   }
 
-  Widget _headerActionButton({required IconData icon, required String label, required VoidCallback onTap, bool active = false, Color? activeColor}) {
-    final color = active ? (activeColor ?? AppColors.action) : Colors.white;
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 4),
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: active ? color.withOpacity(0.18) : Colors.white.withOpacity(0.14),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: active ? color : Colors.white.withOpacity(0.35), width: 1.3),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, color: active ? color : Colors.white, size: 20),
-              const SizedBox(height: 4),
-              Text(label, style: TextStyle(color: active ? color : Colors.white, fontSize: 9.5, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
-            ],
-          ),
-        ),
-      ),
+  Widget _drawerTile({required IconData icon, required String label, required VoidCallback onTap, String? subtitle}) {
+    return ListTile(
+      leading: Icon(icon, color: AppColors.primary, size: 22),
+      title: Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+      subtitle: subtitle != null ? Text(subtitle, style: const TextStyle(fontSize: 11)) : null,
+      onTap: onTap,
+    );
+  }
+
+  Widget _drawerToggleTile({required IconData icon, required String label, required bool active, required Color color, required VoidCallback onTap}) {
+    return ListTile(
+      leading: Icon(icon, color: active ? color : AppColors.textSecondary),
+      title: Text(label, style: TextStyle(fontSize: 14, fontWeight: active ? FontWeight.bold : FontWeight.w500)),
+      subtitle: Text(active ? 'Sedang aktif' : 'Nonaktif', style: TextStyle(fontSize: 11, color: active ? color : AppColors.textSecondary)),
+      trailing: Switch(value: active, activeColor: color, onChanged: (_) => onTap()),
+      onTap: onTap,
     );
   }
 
@@ -168,6 +161,48 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      endDrawer: Drawer(
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                color: AppColors.primary,
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 24,
+                      backgroundColor: Colors.white24,
+                      backgroundImage: fotoProfil != null ? NetworkImage(fotoProfil) : null,
+                      child: fotoProfil == null ? Text(_getInitial(nama), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)) : null,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(nama, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          Text(authProvider.user?.role ?? '-', style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 4),
+              _drawerToggleTile(icon: Icons.sick_outlined, label: 'Sakit', active: izinProvider.jenisAktif == 'sakit', color: AppColors.error, onTap: () => _toggleStatus('sakit')),
+              _drawerToggleTile(icon: Icons.coffee_outlined, label: 'Istirahat', active: izinProvider.jenisAktif == 'istirahat', color: AppColors.warning, onTap: () => _toggleStatus('istirahat')),
+              const Divider(height: 1),
+              _drawerTile(icon: Icons.route_outlined, label: 'Perjalanan', subtitle: 'Rekam rute kunjungan', onTap: () { Navigator.of(context).pop(); Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RouteTrackingView())); }),
+              if (isMaster)
+                _drawerTile(icon: Icons.map_outlined, label: 'Tracking Maps', subtitle: 'Khusus master', onTap: () { Navigator.of(context).pop(); Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrackingMapsView())); }),
+              const Divider(height: 1),
+              _drawerTile(icon: Icons.person_outline, label: 'Profil Saya', onTap: () { Navigator.of(context).pop(); Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProfileView())); }),
+            ],
+          ),
+        ),
+      ),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
@@ -179,52 +214,35 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
             padding: const EdgeInsets.only(bottom: 24),
             children: [
               Container(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-                decoration: const BoxDecoration(
-                  color: AppColors.primary, // FLAT SOLID, tanpa gradient
-                  borderRadius: BorderRadius.only(bottomLeft: Radius.circular(24), bottomRight: Radius.circular(24)),
-                ),
-                child: Column(
+                padding: const EdgeInsets.fromLTRB(20, 18, 12, 22),
+                color: AppColors.primary,
+                child: Row(
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Selamat bekerja,', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                              const SizedBox(height: 2),
-                              Text(nama, style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
-                            ],
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProfileView())),
-                          child: Container(
-                            width: 46, height: 46,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.14),
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: Colors.white.withOpacity(0.35), width: 1.3),
-                              image: fotoProfil != null ? DecorationImage(image: NetworkImage(fotoProfil), fit: BoxFit.cover) : null,
-                            ),
-                            child: fotoProfil == null
-                                ? Center(child: Text(_getInitial(nama), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)))
-                                : null,
-                          ),
-                        ),
-                      ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Selamat bekerja,', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                          const SizedBox(height: 2),
+                          Text(nama, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 18),
-                    // ====== BARIS TOMBOL PENUH — jelas kelihatan sebagai tombol ======
-                    Row(
-                      children: [
-                        _headerActionButton(icon: Icons.sick_outlined, label: 'Sakit', onTap: () => _toggleStatus('sakit'), active: izinProvider.jenisAktif == 'sakit', activeColor: AppColors.error),
-                        _headerActionButton(icon: Icons.coffee_outlined, label: 'Istirahat', onTap: () => _toggleStatus('istirahat'), active: izinProvider.jenisAktif == 'istirahat', activeColor: AppColors.warning),
-                        _headerActionButton(icon: Icons.route_outlined, label: 'Perjalanan', onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RouteTrackingView()))),
-                        if (isMaster)
-                          _headerActionButton(icon: Icons.map_outlined, label: 'Tracking', onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrackingMapsView()))),
-                      ],
+                    if (izinProvider.jenisAktif != null)
+                      Container(
+                        margin: const EdgeInsets.only(right: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6)),
+                        child: Text(
+                          izinProvider.jenisAktif!.toUpperCase(),
+                          style: TextStyle(color: izinProvider.jenisAktif == 'sakit' ? AppColors.error : AppColors.warning, fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    Builder(
+                      builder: (context) => IconButton(
+                        icon: const Icon(Icons.menu, color: Colors.white),
+                        onPressed: () => Scaffold.of(context).openEndDrawer(),
+                      ),
                     ),
                   ],
                 ),
@@ -245,15 +263,16 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                         child: GestureDetector(
                           onTap: () => _showPromoDetail(promo),
                           child: ClipRRect(
-                            borderRadius: BorderRadius.circular(18),
+                            borderRadius: BorderRadius.circular(16),
                             child: Stack(
                               fit: StackFit.expand,
                               children: [
                                 if (promo.gambarUrl != null)
-                                  Image.network(promo.gambarUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: AppColors.primaryLight))
+                                  Image.network(promo.gambarUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: AppColors.primary))
                                 else
                                   Container(color: AppColors.primary),
-                                DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(colors: [Colors.black.withOpacity(0.55), Colors.transparent], begin: Alignment.bottomLeft, end: Alignment.topRight))),
+                                // Overlay SOLID hitam transparan, BUKAN gradient warna.
+                                Container(color: Colors.black.withOpacity(0.35)),
                                 Positioned(
                                   left: 16, right: 16, bottom: 14,
                                   child: Column(
@@ -286,10 +305,10 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                   onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const KunjunganFormView())),
                   child: Container(
                     padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.divider)),
+                    decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.divider)),
                     child: Row(
                       children: [
-                        Container(width: 48, height: 48, decoration: BoxDecoration(color: AppColors.actionLight, borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.add_a_photo_outlined, color: AppColors.action)),
+                        Container(width: 46, height: 46, decoration: BoxDecoration(color: AppColors.actionLight, borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.add_a_photo_outlined, color: AppColors.action)),
                         const SizedBox(width: 14),
                         const Expanded(
                           child: Column(
@@ -316,13 +335,13 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                     Expanded(
                       child: Container(
                         padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(color: AppColors.actionLight, borderRadius: BorderRadius.circular(14)),
+                        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.divider)),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.storefront, color: AppColors.action, size: 22),
+                            const Icon(Icons.storefront_outlined, color: AppColors.action, size: 20),
                             const SizedBox(height: 8),
-                            Text('${memberProvider.members.where((m) => m.sudahKunjungan).length}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.actionText)),
+                            Text('${memberProvider.members.where((m) => m.sudahKunjungan).length}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                             const Text('Kunjungan Hari Ini', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
                           ],
                         ),
@@ -332,13 +351,13 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                     Expanded(
                       child: Container(
                         padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(14)),
+                        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.divider)),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.people_outline, color: AppColors.primary, size: 22),
+                            const Icon(Icons.people_outline, color: AppColors.primary, size: 20),
                             const SizedBox(height: 8),
-                            Text('${memberProvider.members.length}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                            Text('${memberProvider.members.length}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                             const Text('Total Member Saya', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
                           ],
                         ),
@@ -357,7 +376,7 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                   decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.divider)),
                   child: Row(
                     children: [
-                      Container(width: 44, height: 44, decoration: BoxDecoration(color: AppColors.warning.withOpacity(0.12), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.stars_outlined, color: AppColors.warning)),
+                      Container(width: 44, height: 44, decoration: BoxDecoration(color: AppColors.inputFill, borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.stars_outlined, color: AppColors.textSecondary)),
                       const SizedBox(width: 14),
                       const Expanded(
                         child: Column(
