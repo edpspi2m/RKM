@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../app/theme/app_colors.dart';
 import '../../core/network/api_client.dart';
+import 'potensi_kunjungan_form_view.dart';
 
 class PotensiDetailView extends StatefulWidget {
   final Map<String, dynamic> item;
@@ -21,6 +22,7 @@ class _PotensiDetailViewState extends State<PotensiDetailView> {
   int _totalKunjungan = 0;
   List<Map<String, dynamic>> _riwayat = [];
   Map<String, dynamic>? _notGetInfo;
+  List<Map<String, dynamic>> _riwayatPotensi = [];
 
   @override
   void initState() {
@@ -34,6 +36,12 @@ class _PotensiDetailViewState extends State<PotensiDetailView> {
         'latitude': widget.item['latitude'].toString(),
         'longitude': widget.item['longitude'].toString(),
       });
+      
+      try {
+        final responseP = await context.read<ApiClient>().post('/potensi_kunjungan_detail.php', body: {'potensi_id': widget.item['id'].toString()});
+        if (mounted) setState(() => _riwayatPotensi = (responseP['data'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>());
+      } catch (_) {}
+
       if (mounted) {
         setState(() {
           _statusPin = response['status_pin'] ?? 'potensial';
@@ -156,6 +164,21 @@ class _PotensiDetailViewState extends State<PotensiDetailView> {
                     style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
                   ),
                 ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity, height: 50,
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      final result = await Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => PotensiKunjunganFormView(potensiId: int.parse(widget.item['id'].toString()), namaLokasi: widget.item['nama'] ?? 'Lokasi Potensial'),
+                      ));
+                      if (result == true && mounted) _loadDetail();
+                    },
+                    icon: const Icon(Icons.add_a_photo_outlined),
+                    label: const Text('Buat Laporan Kunjungan'),
+                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.action, foregroundColor: Colors.white),
+                  ),
+                ),
                 const SizedBox(height: 24),
 
                 if (_riwayat.isNotEmpty) ...[
@@ -188,6 +211,36 @@ class _PotensiDetailViewState extends State<PotensiDetailView> {
                       ),
                     );
                   }),
+                ],
+                
+                if (_riwayatPotensi.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  const Text('Riwayat Kunjungan Lokasi Ini', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 10),
+                  ..._riwayatPotensi.map((v) => Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.divider)),
+                    child: Row(
+                      children: [
+                        if (v['foto_url'] != null)
+                          ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network(v['foto_url'], width: 44, height: 44, fit: BoxFit.cover))
+                        else
+                          const Icon(Icons.check_circle, size: 20, color: AppColors.action),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(v['waktu'] ?? '-', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                              Text(v['catatan']?.toString().isNotEmpty == true ? v['catatan'] : '-', style: const TextStyle(fontSize: 12)),
+                              Text('Sales: ${v['nama_sales'] ?? '-'}', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  )),
                 ],
               ],
             ),
