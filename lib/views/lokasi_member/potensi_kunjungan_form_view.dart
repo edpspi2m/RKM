@@ -9,7 +9,6 @@ import '../../core/widgets/fake_gps_dialog.dart';
 import '../../data/services/potensi_kunjungan_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/kunjungan_provider.dart';
-import '../../core/network/api_client.dart';
 
 class PotensiKunjunganFormView extends StatefulWidget {
   final int potensiId;
@@ -56,7 +55,7 @@ class _PotensiKunjunganFormViewState extends State<PotensiKunjunganFormView> {
     setState(() => _submitting = true);
     try {
       final userId = context.read<AuthProvider>().user?.id ?? '';
-      final service = PotensiKunjunganService(context.read<ApiClient>());
+      final service = PotensiKunjunganService();
       await service.kirim(
         potensiId: widget.potensiId,
         userId: userId,
