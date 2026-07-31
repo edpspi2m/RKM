@@ -56,15 +56,13 @@ class _PotensiKunjunganFormViewState extends State<PotensiKunjunganFormView> {
     setState(() => _submitting = true);
     try {
       final userId = context.read<AuthProvider>().user?.id ?? '';
-      
-      // Perbaikan: Menambahkan context.read<ApiClient>()
-      final service = PotensiKunjunganService(context.read<ApiClient>()); 
+      final service = PotensiKunjunganService(context.read<ApiClient>());
       
       await service.kirim(
         potensiId: widget.potensiId,
         userId: userId,
         catatan: _catatanController.text.trim(),
-        lokasi: provider.lokasi!,
+        lokasi: provider.lokasi!, // Tipe data sekarang sudah pas (GpsLocationModel)
         foto: provider.fotoWatermark!,
       );
 
