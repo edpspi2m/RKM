@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
+import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import '../app/theme/app_colors.dart';
 import '../core/network/api_client.dart';
@@ -47,8 +48,9 @@ class _MainNavigationViewState extends State<MainNavigationView> with WidgetsBin
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _statusTimer = Timer.periodic(const Duration(seconds: 45), (_) => _checkStatus());
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       _checkStatus();
+      await _ensureTrackingAlwaysOn();
       _checkFakeGps(context: 'app_resume');
     });
   }
@@ -64,7 +66,26 @@ class _MainNavigationViewState extends State<MainNavigationView> with WidgetsBin
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _checkFakeGps(context: 'app_resume');
+      _ensureTrackingAlwaysOn();
     }
+  }
+
+  /// AUTO-START: lokasi otomatis nyala begitu app dibuka/login — TIDAK ADA
+  /// toggle manual lagi. Kalau belum aktif, langsung diaktifkan diam-diam.
+  Future<void> _ensureTrackingAlwaysOn() async {
+    final routeProvider = context.read<RouteTrackingProvider>();
+    if (routeProvider.isTracking) return;
+
+    final userId = context.read<AuthProvider>().user?.id ?? '';
+    if (userId.isEmpty) return;
+
+    await Permission.locationWhenInUse.request();
+    await Permission.locationAlways.request();
+    await Permission.notification.request();
+    final batteryStatus = await Permission.ignoreBatteryOptimizations.status;
+    if (!batteryStatus.isGranted) await Permission.ignoreBatteryOptimizations.request();
+
+    await routeProvider.startTracking(userId);
   }
 
   Future<void> _checkFakeGps({required String context}) async {
@@ -149,7 +170,6 @@ class _MainNavigationViewState extends State<MainNavigationView> with WidgetsBin
   }
 }
 
-/// Bottom nav dengan animasi bounce/scale ala iOS saat ditap.
 class _AnimatedBottomNav extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
@@ -182,9 +202,7 @@ class _AnimatedBottomNav extends StatelessWidget {
               return GestureDetector(
                 onTap: () => onTap(index),
                 behavior: HitTestBehavior.opaque,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeOutBack,
+                child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -200,21 +218,13 @@ class _AnimatedBottomNav extends StatelessWidget {
                             color: isActive ? AppColors.primary.withOpacity(0.12) : Colors.transparent,
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Icon(
-                            isActive ? iconsFilled[index] : iconsOutline[index],
-                            color: isActive ? AppColors.primary : AppColors.textSecondary,
-                            size: 22,
-                          ),
+                          child: Icon(isActive ? iconsFilled[index] : iconsOutline[index], color: isActive ? AppColors.primary : AppColors.textSecondary, size: 22),
                         ),
                       ),
                       const SizedBox(height: 3),
                       AnimatedDefaultTextStyle(
                         duration: const Duration(milliseconds: 200),
-                        style: TextStyle(
-                          fontSize: isActive ? 10.5 : 10,
-                          fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                          color: isActive ? AppColors.primary : AppColors.textSecondary,
-                        ),
+                        style: TextStyle(fontSize: isActive ? 10.5 : 10, fontWeight: isActive ? FontWeight.bold : FontWeight.normal, color: isActive ? AppColors.primary : AppColors.textSecondary),
                         child: Text(labels[index]),
                       ),
                     ],
