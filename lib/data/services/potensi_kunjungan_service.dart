@@ -1,6 +1,6 @@
 import 'dart:io';
-import 'package:geolocator/geolocator.dart';
 import '../../core/network/api_client.dart';
+import '../models/gps_location_model.dart'; // Import model lokasi milik Anda
 
 class PotensiKunjunganService {
   final ApiClient _apiClient;
@@ -11,7 +11,7 @@ class PotensiKunjunganService {
     required int potensiId,
     required String userId,
     required String catatan,
-    required Position lokasi,
+    required GpsLocationModel lokasi, // Ubah dari Position ke GpsLocationModel
     required File foto,
   }) async {
     final fields = {
@@ -22,11 +22,10 @@ class PotensiKunjunganService {
       'longitude': lokasi.longitude.toString(),
     };
 
-    // Hapus parameter `fileField: 'foto'` yang tidak ada di ApiClient
     await _apiClient.postMultipart(
-      '/potensi-kunjungan', // Sesuaikan dengan endpoint API Anda
+      '/potensi-kunjungan', // Sesuaikan endpoint API Anda
       fields: fields,
-      file: foto,
+      file: foto, // Jika ApiClient menerima Map, ganti jadi: files: {'foto': foto}
     );
   }
 }
