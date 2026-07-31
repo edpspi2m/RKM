@@ -8,7 +8,6 @@ import '../../providers/izin_status_provider.dart';
 import '../../data/models/promo_model.dart';
 import '../kunjungan/kunjungan_form_view.dart';
 import '../profile/profile_view.dart';
-import '../tracking/route_tracking_view.dart';
 import '../tracking/tracking_maps_view.dart';
 import '../lokasi_member/potensial_get_view.dart';
 
@@ -194,7 +193,6 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
               _drawerToggleTile(icon: Icons.sick_outlined, label: 'Sakit', active: izinProvider.jenisAktif == 'sakit', color: AppColors.error, onTap: () => _toggleStatus('sakit')),
               _drawerToggleTile(icon: Icons.coffee_outlined, label: 'Istirahat', active: izinProvider.jenisAktif == 'istirahat', color: AppColors.warning, onTap: () => _toggleStatus('istirahat')),
               const Divider(height: 1),
-              _drawerTile(icon: Icons.route_outlined, label: 'Perjalanan', subtitle: 'Rekam rute kunjungan', onTap: () { Navigator.of(context).pop(); Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RouteTrackingView())); }),
               if (isMaster)
                 _drawerTile(icon: Icons.map_outlined, label: 'Tracking Maps', subtitle: 'Khusus master', onTap: () { Navigator.of(context).pop(); Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrackingMapsView())); }),
               const Divider(height: 1),
