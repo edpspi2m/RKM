@@ -187,7 +187,12 @@ class _PotensialGetViewState extends State<PotensialGetView> with SingleTickerPr
                                   alignment: Alignment.topCenter,
                                   child: GestureDetector(
                                     onTap: () => _navigatingTo == null ? _showMarkerSheet(item) : null,
-                                    child: const Icon(Icons.location_on, color: AppColors.error, size: 38, shadows: [Shadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))]),
+                                    child: Icon(
+                                      item['sudah_dikunjungi'] == true ? Icons.location_on : Icons.location_on_outlined,
+                                      color: item['sudah_dikunjungi'] == true ? AppColors.action : AppColors.error,
+                                      size: 30,
+                                      shadows: const [Shadow(color: Colors.black38, blurRadius: 4, offset: Offset(0, 2))],
+                                    ),
                                   ),
                                 );
                               }).toList(),
