@@ -15,14 +15,9 @@ class PotensiDetailView extends StatefulWidget {
 
 class _PotensiDetailViewState extends State<PotensiDetailView> {
   bool _loading = true;
-  String _statusPin = 'potensial';
-  bool _sudahMember = false;
-  String? _namaMember;
-  String? _kodeMember;
+  bool _sudahDikunjungi = false;
   int _totalKunjungan = 0;
   List<Map<String, dynamic>> _riwayat = [];
-  Map<String, dynamic>? _notGetInfo;
-  List<Map<String, dynamic>> _riwayatPotensi = [];
 
   @override
   void initState() {
@@ -31,26 +26,16 @@ class _PotensiDetailViewState extends State<PotensiDetailView> {
   }
 
   Future<void> _loadDetail() async {
+    setState(() => _loading = true);
     try {
       final response = await context.read<ApiClient>().post('/potensi_lokasi_detail.php', body: {
-        'latitude': widget.item['latitude'].toString(),
-        'longitude': widget.item['longitude'].toString(),
+        'potensi_id': widget.item['id'].toString(),
       });
-      
-      try {
-        final responseP = await context.read<ApiClient>().post('/potensi_kunjungan_detail.php', body: {'potensi_id': widget.item['id'].toString()});
-        if (mounted) setState(() => _riwayatPotensi = (responseP['data'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>());
-      } catch (_) {}
-
       if (mounted) {
         setState(() {
-          _statusPin = response['status_pin'] ?? 'potensial';
-          _sudahMember = response['sudah_member'] == true;
-          _namaMember = response['nama_member'];
-          _kodeMember = response['kode_member'];
+          _sudahDikunjungi = response['sudah_dikunjungi'] == true;
           _totalKunjungan = response['total_kunjungan'] as int? ?? 0;
           _riwayat = (response['riwayat'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
-          _notGetInfo = response['not_get_info'] as Map<String, dynamic>?;
           _loading = false;
         });
       }
@@ -66,18 +51,8 @@ class _PotensiDetailViewState extends State<PotensiDetailView> {
     if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
-  (String, Color, IconData) get _statusInfo {
-    switch (_statusPin) {
-      case 'member': return ('Sudah Menjadi Member', AppColors.action, Icons.verified);
-      case 'not_get': return ('Sudah Dilaporkan Not Get', AppColors.error, Icons.cancel);
-      default: return ('Belum Pernah Disentuh — Potensial', AppColors.warning, Icons.explore_outlined);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final (statusLabel, statusColor, statusIcon) = _statusInfo;
-
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('Detail Lokasi Potensi')),
@@ -88,18 +63,22 @@ class _PotensiDetailViewState extends State<PotensiDetailView> {
               children: [
                 Container(
                   padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(color: statusColor.withOpacity(0.08), borderRadius: BorderRadius.circular(16), border: Border.all(color: statusColor.withOpacity(0.3))),
+                  decoration: BoxDecoration(
+                    color: _sudahDikunjungi ? AppColors.actionLight : AppColors.error.withOpacity(0.06),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: _sudahDikunjungi ? AppColors.action.withOpacity(0.3) : AppColors.error.withOpacity(0.3)),
+                  ),
                   child: Row(
                     children: [
-                      Icon(statusIcon, size: 36, color: statusColor),
+                      Icon(_sudahDikunjungi ? Icons.check_circle : Icons.location_on_outlined, size: 36, color: _sudahDikunjungi ? AppColors.action : AppColors.error),
                       const SizedBox(width: 14),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(statusLabel, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: statusColor)),
+                            Text(_sudahDikunjungi ? 'Sudah Dikunjungi' : 'Belum Pernah Dikunjungi', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: _sudahDikunjungi ? AppColors.actionText : AppColors.error)),
                             const SizedBox(height: 2),
-                            Text(_sudahMember ? '$_namaMember ${_kodeMember != null ? "($_kodeMember)" : ""}' : widget.item['nama'] ?? 'Lokasi Potensial', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                            Text(widget.item['nama'] ?? 'Lokasi Potensial', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                           ],
                         ),
                       ),
@@ -107,32 +86,6 @@ class _PotensiDetailViewState extends State<PotensiDetailView> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                if (_notGetInfo != null) ...[
-                  const Text('Info Laporan Not Get', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.error)),
-                  const SizedBox(height: 8),
-                  if (_notGetInfo!['foto_url'] != null)
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(14),
-                      child: Image.network(_notGetInfo!['foto_url'], height: 200, width: double.infinity, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(height: 150, color: AppColors.inputFill)),
-                    ),
-                  const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(color: AppColors.error.withOpacity(0.05), borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.error.withOpacity(0.2))),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Toko: ${_notGetInfo!['toko'] ?? '-'}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                        const SizedBox(height: 4),
-                        Text('Alasan: ${_notGetInfo!['alasan']?.toString().isNotEmpty == true ? _notGetInfo!['alasan'] : '-'}', style: const TextStyle(fontSize: 12)),
-                        const SizedBox(height: 4),
-                        Text('Sales: ${_notGetInfo!['sales'] ?? '-'} • ${_notGetInfo!['waktu'] ?? '-'}', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                ],
 
                 Row(
                   children: [
@@ -184,64 +137,36 @@ class _PotensiDetailViewState extends State<PotensiDetailView> {
                 if (_riwayat.isNotEmpty) ...[
                   const Text('Riwayat Kunjungan', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 10),
-                  ..._riwayat.map((v) {
-                    final isNotGet = v['status_kunjungan'] == 'not_get';
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.divider)),
-                      child: Row(
-                        children: [
-                          if (v['foto_url'] != null)
-                            ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network(v['foto_url'], width: 44, height: 44, fit: BoxFit.cover))
-                          else
-                            Icon(isNotGet ? Icons.cancel : Icons.check_circle, size: 20, color: isNotGet ? AppColors.error : AppColors.action),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(v['waktu'] ?? '-', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                                Text(v['catatan']?.toString().isNotEmpty == true ? v['catatan'] : '-', style: const TextStyle(fontSize: 12)),
-                                Text('Sales: ${v['nama_sales'] ?? '-'}', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                              ],
+                  ..._riwayat.map((v) => Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.divider)),
+                        child: Row(
+                          children: [
+                            if (v['foto_url'] != null)
+                              ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network(v['foto_url'], width: 44, height: 44, fit: BoxFit.cover))
+                            else
+                              const Icon(Icons.check_circle, size: 20, color: AppColors.action),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(v['waktu'] ?? '-', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                  Text(v['catatan']?.toString().isNotEmpty == true ? v['catatan'] : '-', style: const TextStyle(fontSize: 12)),
+                                  Text('Sales: ${v['nama_sales'] ?? '-'}', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }),
-                ],
-                
-                if (_riwayatPotensi.isNotEmpty) ...[
-                  const SizedBox(height: 24),
-                  const Text('Riwayat Kunjungan Lokasi Ini', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 10),
-                  ..._riwayatPotensi.map((v) => Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.divider)),
-                    child: Row(
-                      children: [
-                        if (v['foto_url'] != null)
-                          ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network(v['foto_url'], width: 44, height: 44, fit: BoxFit.cover))
-                        else
-                          const Icon(Icons.check_circle, size: 20, color: AppColors.action),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(v['waktu'] ?? '-', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                              Text(v['catatan']?.toString().isNotEmpty == true ? v['catatan'] : '-', style: const TextStyle(fontSize: 12)),
-                              Text('Sales: ${v['nama_sales'] ?? '-'}', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                            ],
-                          ),
+                          ],
                         ),
-                      ],
-                    ),
-                  )),
-                ],
+                      )),
+                ] else
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(color: AppColors.inputFill, borderRadius: BorderRadius.circular(12)),
+                    child: const Text('Belum ada riwayat kunjungan di lokasi ini.', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                  ),
               ],
             ),
     );
