@@ -17,14 +17,14 @@ class BackgroundLocationHandler {
     await service.configure(
       androidConfiguration: AndroidConfiguration(
         onStart: _onStart,
-        autoStart: false,
+        autoStart: true, // FIX: service langsung siap dipanggil kapan pun, tanpa delay setup
         isForegroundMode: true,
         notificationChannelId: _notifChannelId,
         initialNotificationTitle: 'RKM — Perjalanan',
         initialNotificationContent: 'Mengirim lokasi secara berkala...',
         foregroundServiceNotificationId: _notifId,
       ),
-      iosConfiguration: IosConfiguration(autoStart: false, onForeground: _onStart, onBackground: _onIosBackground),
+      iosConfiguration: IosConfiguration(autoStart: true, onForeground: _onStart, onBackground: _onIosBackground),
     );
   }
 
