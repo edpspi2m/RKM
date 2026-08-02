@@ -1,6 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-          xmlns:tools="http://schemas.android.com/tools"> <!-- Ini tambahan pertama -->
-    
+    xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
@@ -11,6 +10,7 @@
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
 
     <application
         android:label="RKM"
@@ -38,16 +38,17 @@
             android:name="flutterEmbedding"
             android:value="2" />
 
+        <!-- FIX: tools:replace menyelesaikan konflik merge manifest yang
+             bikin build gagal dulu ("Attribute service#...@exported ...
+             is also present ... Suggestion: add tools:replace"). Ini
+             yang belum sempat benar-benar dipasang sebelumnya. -->
         <service
             android:name="id.flutter.flutter_background_service.BackgroundService"
             android:foregroundServiceType="location"
             android:exported="false"
-            tools:replace="android:exported" /> <!-- Ini tambahan kedua -->
+            tools:replace="android:exported" />
     </application>
 
-    <!-- INI YANG HILANG: wajib ada sejak Android 11 supaya url_launcher
-         (buka Google Maps, browser, dll) benar-benar bisa jalan.
-         Tanpa ini, launchUrl() gagal DIAM-DIAM tanpa pesan error. -->
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
