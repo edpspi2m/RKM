@@ -22,6 +22,9 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
   final PageController _bannerController = PageController(viewportFraction: 0.9);
   int _bannerIndex = 0;
 
+  // GUARD lokal: cegah user tap tombol dobel sebelum request pertama selesai.
+  bool _togglingLock = false;
+
   @override
   void initState() {
     super.initState();
@@ -51,51 +54,65 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
   }
 
   Future<void> _toggleStatus(String jenis) async {
+    // Kunci ganda: guard lokal DAN cek provider.isLoading — kalau salah
+    // satu sedang true, abaikan tap ini sama sekali.
+    if (_togglingLock) return;
     final izinProvider = context.read<IzinStatusProvider>();
-    final userId = context.read<AuthProvider>().user?.id ?? '';
+    if (izinProvider.isLoading) return;
 
-    if (izinProvider.jenisAktif == jenis) {
-      final ok = await izinProvider.stop(userId);
+    setState(() => _togglingLock = true);
+
+    try {
+      final userId = context.read<AuthProvider>().user?.id ?? '';
+
+      if (izinProvider.jenisAktif == jenis) {
+        final ok = await izinProvider.stop(userId);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(ok ? 'Status $jenis dinonaktifkan.' : (izinProvider.errorMessage ?? 'Gagal menonaktifkan.')),
+            backgroundColor: ok ? AppColors.action : AppColors.error,
+          ));
+        }
+        return;
+      }
+      if (izinProvider.jenisAktif != null) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Matikan status "${izinProvider.jenisAktif}" terlebih dahulu.')));
+        return;
+      }
+
+      String keterangan = '';
+      if (jenis == 'sakit') {
+        final input = await showDialog<String>(
+          context: context,
+          builder: (ctx) {
+            final controller = TextEditingController();
+            return AlertDialog(
+              title: const Text('Keterangan Sakit'),
+              content: TextField(controller: controller, decoration: const InputDecoration(hintText: 'Contoh: Demam, flu, dll'), maxLines: 2, autofocus: true),
+              actions: [
+                TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Batal')),
+                TextButton(onPressed: () => Navigator.of(ctx).pop(controller.text.trim()), child: const Text('Aktifkan')),
+              ],
+            );
+          },
+        );
+        if (input == null || input.isEmpty) return;
+        keterangan = input;
+      }
+
+      final ok = await izinProvider.start(userId: userId, jenis: jenis, keterangan: keterangan);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(ok ? 'Status $jenis dinonaktifkan.' : (izinProvider.errorMessage ?? 'Gagal menonaktifkan.')),
+          content: Text(ok ? 'Status $jenis diaktifkan.' : (izinProvider.errorMessage ?? 'Gagal mengaktifkan.')),
           backgroundColor: ok ? AppColors.action : AppColors.error,
+          duration: const Duration(seconds: 4),
         ));
       }
-      return;
-    }
-    if (izinProvider.jenisAktif != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Matikan status "${izinProvider.jenisAktif}" terlebih dahulu.')));
-      return;
-    }
-
-    String keterangan = '';
-    if (jenis == 'sakit') {
-      final input = await showDialog<String>(
-        context: context,
-        builder: (ctx) {
-          final controller = TextEditingController();
-          return AlertDialog(
-            title: const Text('Keterangan Sakit'),
-            content: TextField(controller: controller, decoration: const InputDecoration(hintText: 'Contoh: Demam, flu, dll'), maxLines: 2, autofocus: true),
-            actions: [
-              TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Batal')),
-              TextButton(onPressed: () => Navigator.of(ctx).pop(controller.text.trim()), child: const Text('Aktifkan')),
-            ],
-          );
-        },
-      );
-      if (input == null || input.isEmpty) return;
-      keterangan = input;
-    }
-
-    final ok = await izinProvider.start(userId: userId, jenis: jenis, keterangan: keterangan);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(ok ? 'Status $jenis diaktifkan.' : (izinProvider.errorMessage ?? 'Gagal mengaktifkan.')),
-        backgroundColor: ok ? AppColors.action : AppColors.error,
-        duration: const Duration(seconds: 4),
-      ));
+    } finally {
+      // Beri jeda kecil sebelum guard dilepas, biar gak langsung bisa
+      // di-tap lagi persis di frame berikutnya.
+      await Future.delayed(const Duration(milliseconds: 400));
+      if (mounted) setState(() => _togglingLock = false);
     }
   }
 
@@ -138,13 +155,20 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
     );
   }
 
-  Widget _drawerToggleTile({required IconData icon, required String label, required bool active, required Color color, required VoidCallback onTap}) {
+  Widget _drawerToggleTile({required IconData icon, required String label, required bool active, required Color color, required VoidCallback onTap, required bool isProcessing}) {
     return ListTile(
       leading: Icon(icon, color: active ? color : AppColors.textSecondary),
       title: Text(label, style: TextStyle(fontSize: 14, fontWeight: active ? FontWeight.bold : FontWeight.w500)),
-      subtitle: Text(active ? 'Sedang aktif' : 'Nonaktif', style: TextStyle(fontSize: 11, color: active ? color : AppColors.textSecondary)),
-      trailing: Switch(value: active, activeColor: color, onChanged: (_) => onTap()),
-      onTap: onTap,
+      subtitle: Text(
+        isProcessing ? 'Memproses...' : (active ? 'Sedang aktif' : 'Nonaktif'),
+        style: TextStyle(fontSize: 11, color: isProcessing ? AppColors.warning : (active ? color : AppColors.textSecondary)),
+      ),
+      // Tampilkan spinner kecil menggantikan Switch selama proses,
+      // jadi user TAHU tombolnya sedang bekerja & tidak akan tap lagi.
+      trailing: isProcessing
+          ? const SizedBox(width: 40, height: 20, child: Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))))
+          : Switch(value: active, activeColor: color, onChanged: (_) => onTap()),
+      onTap: isProcessing ? null : onTap,
     );
   }
 
@@ -157,6 +181,7 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
     final nama = authProvider.user?.nama ?? 'Sales';
     final fotoProfil = authProvider.user?.fotoProfil;
     final isMaster = authProvider.user?.role == 'master';
+    final isProcessing = izinProvider.isLoading || _togglingLock;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -190,8 +215,8 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                 ),
               ),
               const SizedBox(height: 4),
-              _drawerToggleTile(icon: Icons.sick_outlined, label: 'Sakit', active: izinProvider.jenisAktif == 'sakit', color: AppColors.error, onTap: () => _toggleStatus('sakit')),
-              _drawerToggleTile(icon: Icons.coffee_outlined, label: 'Istirahat', active: izinProvider.jenisAktif == 'istirahat', color: AppColors.warning, onTap: () => _toggleStatus('istirahat')),
+              _drawerToggleTile(icon: Icons.sick_outlined, label: 'Sakit', active: izinProvider.jenisAktif == 'sakit', color: AppColors.error, onTap: () => _toggleStatus('sakit'), isProcessing: isProcessing),
+              _drawerToggleTile(icon: Icons.coffee_outlined, label: 'Istirahat', active: izinProvider.jenisAktif == 'istirahat', color: AppColors.warning, onTap: () => _toggleStatus('istirahat'), isProcessing: isProcessing),
               const Divider(height: 1),
               if (isMaster)
                 _drawerTile(icon: Icons.map_outlined, label: 'Tracking Maps', subtitle: 'Khusus master', onTap: () { Navigator.of(context).pop(); Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrackingMapsView())); }),
@@ -231,16 +256,10 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                         margin: const EdgeInsets.only(right: 4),
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6)),
-                        child: Text(
-                          izinProvider.jenisAktif!.toUpperCase(),
-                          style: TextStyle(color: izinProvider.jenisAktif == 'sakit' ? AppColors.error : AppColors.warning, fontSize: 10, fontWeight: FontWeight.bold),
-                        ),
+                        child: Text(izinProvider.jenisAktif!.toUpperCase(), style: TextStyle(color: izinProvider.jenisAktif == 'sakit' ? AppColors.error : AppColors.warning, fontSize: 10, fontWeight: FontWeight.bold)),
                       ),
                     Builder(
-                      builder: (context) => IconButton(
-                        icon: const Icon(Icons.menu, color: Colors.white),
-                        onPressed: () => Scaffold.of(context).openEndDrawer(),
-                      ),
+                      builder: (context) => IconButton(icon: const Icon(Icons.menu, color: Colors.white), onPressed: () => Scaffold.of(context).openEndDrawer()),
                     ),
                   ],
                 ),
@@ -269,7 +288,6 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                                   Image.network(promo.gambarUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: AppColors.primary))
                                 else
                                   Container(color: AppColors.primary),
-                                // Overlay SOLID hitam transparan, BUKAN gradient warna.
                                 Container(color: Colors.black.withOpacity(0.35)),
                                 Positioned(
                                   left: 16, right: 16, bottom: 14,
