@@ -22,10 +22,10 @@ class PotensiKunjunganService {
       'longitude': lokasi.longitude.toString(),
     };
 
-    await _apiClient.postMultipart(
-      '/potensi-kunjungan/potensi_kunjungan.php', // Sesuaikan endpoint API Anda
-      fields: fields,
-      file: foto, // Jika ApiClient menerima Map, ganti jadi: files: {'foto': foto}
-    );
+    await _apiclient.postMultipart(
+  '/absen/potensi_kunjungan.php', 
+  fields: fields,
+  file: foto,
+);
   }
 }
