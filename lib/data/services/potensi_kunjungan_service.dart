@@ -1,17 +1,17 @@
 import 'dart:io';
 import '../../core/network/api_client.dart';
-import '../models/gps_location_model.dart'; // Import model lokasi milik Anda
+import '../../models/gps_location_model.dart';
 
 class PotensiKunjunganService {
-  final ApiClient _apiClient;
+  final ApiClient apiClient; // Tanpa underscore agar sesuai
 
-  PotensiKunjunganService(this._apiClient);
+  PotensiKunjunganService(this.apiClient);
 
   Future<void> kirim({
     required int potensiId,
     required String userId,
     required String catatan,
-    required GpsLocationModel lokasi, // Ubah dari Position ke GpsLocationModel
+    required GpsLocationModel lokasi,
     required File foto,
   }) async {
     final fields = {
@@ -22,10 +22,10 @@ class PotensiKunjunganService {
       'longitude': lokasi.longitude.toString(),
     };
 
-    await _apiclient.postMultipart(
-  '/absen/potensi_kunjungan.php', 
-  fields: fields,
-  file: foto,
-);
+    await apiClient.postMultipart(
+      '/absen/potensi_kunjungan.php', 
+      fields: fields,
+      file: foto,
+    );
   }
 }
