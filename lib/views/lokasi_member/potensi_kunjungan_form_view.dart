@@ -62,7 +62,8 @@ class _PotensiKunjunganFormViewState extends State<PotensiKunjunganFormView> {
         potensiId: widget.potensiId,
         userId: userId,
         catatan: _catatanController.text.trim(),
-        lokasi: provider.lokasi!, // Tipe data sekarang sudah pas (GpsLocationModel)
+        latitude: provider.lokasi!.latitude,   // Diambil langsung nilai double-nya
+        longitude: provider.lokasi!.longitude, // Diambil langsung nilai double-nya
         foto: provider.fotoWatermark!,
       );
 
