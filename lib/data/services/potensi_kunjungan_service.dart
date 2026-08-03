@@ -1,9 +1,8 @@
 import 'dart:io';
 import '../../core/network/api_client.dart';
-import '../../models/gps_location_model.dart';
 
 class PotensiKunjunganService {
-  final ApiClient apiClient; // Tanpa underscore agar sesuai
+  final ApiClient apiClient;
 
   PotensiKunjunganService(this.apiClient);
 
@@ -11,15 +10,16 @@ class PotensiKunjunganService {
     required int potensiId,
     required String userId,
     required String catatan,
-    required GpsLocationModel lokasi,
+    required double latitude,
+    required double longitude,
     required File foto,
   }) async {
     final fields = {
       'potensi_id': potensiId.toString(),
       'user_id': userId,
       'catatan': catatan,
-      'latitude': lokasi.latitude.toString(),
-      'longitude': lokasi.longitude.toString(),
+      'latitude': latitude.toString(),
+      'longitude': longitude.toString(),
     };
 
     await apiClient.postMultipart(
