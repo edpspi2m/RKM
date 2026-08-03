@@ -192,7 +192,7 @@ class _LoginViewState extends State<LoginView> {
 
                   // Catatan Bawah
                   const Text(
-                    'Kode OTP akan dibuat sistem dan dapat dilihat admin.',
+                    'Kode OTP akan di kirim ke MGR/SPV.',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 11.5, color: Color(0xFF94A3B8)),
                   ),
