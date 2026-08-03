@@ -23,7 +23,7 @@ class PotensiKunjunganService {
     };
 
     await _apiClient.postMultipart(
-      '/potensi-kunjungan', // Sesuaikan endpoint API Anda
+      '/potensi-kunjungan/potensi_kunjungan.php', // Sesuaikan endpoint API Anda
       fields: fields,
       file: foto, // Jika ApiClient menerima Map, ganti jadi: files: {'foto': foto}
     );
