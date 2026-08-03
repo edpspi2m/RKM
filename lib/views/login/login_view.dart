@@ -43,19 +43,19 @@ class _LoginViewState extends State<LoginView> {
     }
   }
 
-  InputDecoration _inputDecoration({required String label, required IconData icon, Widget? suffixIcon}) {
+  InputDecoration _inputDecoration({required String hint, required IconData icon, Widget? suffixIcon}) {
     return InputDecoration(
-      labelText: label,
-      labelStyle: const TextStyle(color: AppColors.textSecondary),
-      prefixIcon: Icon(icon, color: AppColors.primary, size: 22),
+      hintText: hint,
+      hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
+      prefixIcon: Icon(icon, color: const Color(0xFF1E40AF), size: 22),
       suffixIcon: suffixIcon,
       filled: true,
-      fillColor: AppColors.inputFill,
-      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
-      errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.error, width: 1.2)),
+      fillColor: const Color(0xFFF8FAFC),
+      contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF1E40AF), width: 1.5)),
+      errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1.2)),
     );
   }
 
@@ -65,77 +65,160 @@ class _LoginViewState extends State<LoginView> {
     final isLoading = otpProvider.state == OtpState.requestingOtp;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: const Color(0xFFF1F5F9),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 28),
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Form(
               key: _formKey,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.08), blurRadius: 24, spreadRadius: 4)],
-                    ),
-                    child: Image.asset(
-                      'assets/images/logo.png',
-                      height: 72, width: 72, fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const Icon(Icons.apartment_rounded, size: 64, color: AppColors.primary),
+                  // Logo Container Putih Solid
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.04),
+                            blurRadius: 15,
+                            spreadRadius: 2,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        height: 64, width: 64, fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => const Icon(Icons.apartment_rounded, size: 52, color: Color(0xFF1E40AF)),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 24),
-                  const Text('RKM', textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700, color: AppColors.primaryDark, letterSpacing: 0.5)),
+                  
+                  // Judul Aplikasi
+                  const Text(
+                    'RKM',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1E293B),
+                      letterSpacing: 0.5,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  const Text('Rencana Kunjungan Member', textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
-                  const SizedBox(height: 40),
+                  const Text(
+                    'Rencana Kunjungan Member',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+
+                  // Input Username
                   TextFormField(
                     controller: _usernameController,
                     keyboardType: TextInputType.text,
-                    style: const TextStyle(color: AppColors.textPrimary),
-                    decoration: _inputDecoration(label: 'Username', icon: Icons.person_outline),
+                    style: const TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.w500),
+                    decoration: _inputDecoration(hint: 'Username', icon: Icons.person_outline_rounded),
                     validator: (v) => (v == null || v.trim().isEmpty) ? 'Username tidak boleh kosong' : null,
                   ),
                   const SizedBox(height: 16),
+
+                  // Input Kata Sandi
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
-                    style: const TextStyle(color: AppColors.textPrimary),
+                    style: const TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.w500),
                     decoration: _inputDecoration(
-                      label: 'Kata Sandi',
-                      icon: Icons.lock_outline,
+                      hint: 'Kata Sandi',
+                      icon: Icons.lock_outline_rounded,
                       suffixIcon: IconButton(
-                        icon: Icon(_obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: AppColors.textSecondary),
+                        icon: Icon(
+                          _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                          color: const Color(0xFF64748B),
+                          size: 20,
+                        ),
                         onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                       ),
                     ),
                     validator: (v) => (v == null || v.isEmpty) ? 'Kata sandi tidak boleh kosong' : null,
                   ),
                   const SizedBox(height: 28),
+
+                  // Tombol Kirim OTP Biru Solid
                   SizedBox(
-                    height: 52,
-                    child: AppButton(label: 'Kirim OTP', icon: Icons.send_outlined, isLoading: isLoading, onPressed: _handleKirimOtp),
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: isLoading ? null : _handleKirimOtp,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1E40AF),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: isLoading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.send_rounded, size: 18),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Kirim OTP',
+                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
+                    ),
                   ),
-                  const SizedBox(height: 12),
-                  const Text('Kode OTP akan dibuat sistem dan dapat dilihat admin.',
-                      textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                  const SizedBox(height: 16),
+
+                  // Catatan Bawah
+                  const Text(
+                    'Kode OTP akan dibuat sistem dan dapat dilihat admin.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 11.5, color: Color(0xFF94A3B8)),
+                  ),
+
+                  // Error Banner
                   if (otpProvider.state == OtpState.error && otpProvider.errorMessage != null) ...[
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
                     Container(
-                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
-                      decoration: BoxDecoration(color: AppColors.error.withOpacity(0.08), borderRadius: BorderRadius.circular(10)),
-                      child: Row(children: [
-                        const Icon(Icons.error_outline, color: AppColors.error, size: 18),
-                        const SizedBox(width: 8),
-                        Flexible(child: Text(otpProvider.errorMessage!, style: const TextStyle(color: AppColors.error, fontSize: 13))),
-                      ]),
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF2F2),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFMFCA5A5)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.error_outline_rounded, color: Color(0xFFEF4444), size: 20),
+                          const SizedBox(width: 10),
+                          Flexible(
+                            child: Text(
+                              otpProvider.errorMessage!,
+                              style: const TextStyle(color: Color(0xFFEF4444), fontSize: 13, fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ],
