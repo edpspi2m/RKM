@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import '../app/theme/app_colors.dart';
+import '../core/widgets/location_service_blocker.dart';
 import '../core/network/api_client.dart';
 import '../core/widgets/fake_gps_dialog.dart';
 import '../core/widgets/global_fake_gps_blocker.dart';
@@ -30,6 +31,7 @@ class _MainNavigationViewState extends State<MainNavigationView> with WidgetsBin
   Timer? _statusTimer;
   bool _showingLock = false;
   bool _fakeGpsBlocked = false;
+  bool _locationServiceOff = false;
 
   final List<Widget> _pages = const [
     KunjunganHomeView(),
@@ -39,7 +41,7 @@ class _MainNavigationViewState extends State<MainNavigationView> with WidgetsBin
     RiwayatView(),
   ];
 
-  final List<IconData> _iconsOutline = const [Icons.storefront_outlined, Icons.people_outline, Icons.map_outlined, Icons.cancel_outlined, Icons.history_outlined];
+  final List<IconData> _iconsOutline = const [Icons.storefront_outlined, Icons.people_outlined, Icons.map_outlined, Icons.cancel_outlined, Icons.history_outlined];
   final List<IconData> _iconsFilled = const [Icons.storefront, Icons.people, Icons.map, Icons.cancel, Icons.history];
   final List<String> _labels = const ['Kunjungan', 'Member', 'Lokasi', 'Not Get', 'Riwayat'];
 
@@ -47,9 +49,13 @@ class _MainNavigationViewState extends State<MainNavigationView> with WidgetsBin
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _statusTimer = Timer.periodic(const Duration(seconds: 45), (_) => _checkStatus());
+    _statusTimer = Timer.periodic(const Duration(seconds: 45), (_) {
+      _checkStatus();
+      _checkLocationServiceEnabled();
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       _checkStatus();
+      await _checkLocationServiceEnabled();
       await _ensureTrackingAlwaysOn();
       _checkFakeGps(context: 'app_resume');
     });
@@ -65,8 +71,18 @@ class _MainNavigationViewState extends State<MainNavigationView> with WidgetsBin
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      _checkLocationServiceEnabled();
       _checkFakeGps(context: 'app_resume');
       _ensureTrackingAlwaysOn();
+    }
+  }
+
+  Future<void> _checkLocationServiceEnabled() async {
+    final enabled = await Geolocator.isLocationServiceEnabled();
+    if (!enabled && mounted) {
+      setState(() => _locationServiceOff = true);
+    } else if (enabled && _locationServiceOff && mounted) {
+      setState(() => _locationServiceOff = false);
     }
   }
 
@@ -145,6 +161,10 @@ class _MainNavigationViewState extends State<MainNavigationView> with WidgetsBin
 
   @override
   Widget build(BuildContext context) {
+    if (_locationServiceOff) {
+      return LocationServiceBlocker(onEnabled: () => setState(() => _locationServiceOff = false));
+    }
+
     if (_fakeGpsBlocked) {
       return const GlobalFakeGpsBlocker();
     }
