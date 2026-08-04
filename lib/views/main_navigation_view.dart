@@ -162,7 +162,7 @@ class _MainNavigationViewState extends State<MainNavigationView> with WidgetsBin
   @override
   Widget build(BuildContext context) {
     if (_locationServiceOff) {
-      return LocationServiceBlocker(onEnabled: () => setState(() => _locationServiceOff = false));
+      return const LocationServiceBlocker();
     }
 
     if (_fakeGpsBlocked) {
