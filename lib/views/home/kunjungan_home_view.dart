@@ -22,8 +22,7 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
   final PageController _bannerController = PageController(viewportFraction: 0.9);
   int _bannerIndex = 0;
 
-  // GUARD lokal: cegah user tap tombol dobel sebelum request pertama selesai.
-  bool _togglingLock = false;
+  String? _processingJenis; // null = tidak ada yang diproses, 'sakit'/'istirahat' = sedang diproses
 
   @override
   void initState() {
@@ -54,13 +53,12 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
   }
 
   Future<void> _toggleStatus(String jenis) async {
-    // Kunci ganda: guard lokal DAN cek provider.isLoading — kalau salah
-    // satu sedang true, abaikan tap ini sama sekali.
-    if (_togglingLock) return;
+    // Kalau ADA proses lain yang sedang jalan (apapun jenisnya), abaikan tap ini.
+    if (_processingJenis != null) return;
     final izinProvider = context.read<IzinStatusProvider>();
     if (izinProvider.isLoading) return;
 
-    setState(() => _togglingLock = true);
+    setState(() => _processingJenis = jenis); // HANYA tandai jenis yang benar-benar ditekan
 
     try {
       final userId = context.read<AuthProvider>().user?.id ?? '';
@@ -109,10 +107,8 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
         ));
       }
     } finally {
-      // Beri jeda kecil sebelum guard dilepas, biar gak langsung bisa
-      // di-tap lagi persis di frame berikutnya.
       await Future.delayed(const Duration(milliseconds: 400));
-      if (mounted) setState(() => _togglingLock = false);
+      if (mounted) setState(() => _processingJenis = null);
     }
   }
 
@@ -181,7 +177,6 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
     final nama = authProvider.user?.nama ?? 'Sales';
     final fotoProfil = authProvider.user?.fotoProfil;
     final isMaster = authProvider.user?.role == 'master';
-    final isProcessing = izinProvider.isLoading || _togglingLock;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -215,8 +210,8 @@ class _KunjunganHomeViewState extends State<KunjunganHomeView> {
                 ),
               ),
               const SizedBox(height: 4),
-              _drawerToggleTile(icon: Icons.sick_outlined, label: 'Sakit', active: izinProvider.jenisAktif == 'sakit', color: AppColors.error, onTap: () => _toggleStatus('sakit'), isProcessing: isProcessing),
-              _drawerToggleTile(icon: Icons.coffee_outlined, label: 'Istirahat', active: izinProvider.jenisAktif == 'istirahat', color: AppColors.warning, onTap: () => _toggleStatus('istirahat'), isProcessing: isProcessing),
+              _drawerToggleTile(icon: Icons.sick_outlined, label: 'Sakit', active: izinProvider.jenisAktif == 'sakit', color: AppColors.error, onTap: () => _toggleStatus('sakit'), isProcessing: _processingJenis == 'sakit'),
+              _drawerToggleTile(icon: Icons.coffee_outlined, label: 'Istirahat', active: izinProvider.jenisAktif == 'istirahat', color: AppColors.warning, onTap: () => _toggleStatus('istirahat'), isProcessing: _processingJenis == 'istirahat'),
               const Divider(height: 1),
               if (isMaster)
                 _drawerTile(icon: Icons.map_outlined, label: 'Tracking Maps', subtitle: 'Khusus master', onTap: () { Navigator.of(context).pop(); Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrackingMapsView())); }),
