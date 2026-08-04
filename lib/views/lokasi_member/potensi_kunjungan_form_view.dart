@@ -6,7 +6,6 @@ import '../../app/theme/app_colors.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/loading_overlay.dart';
 import '../../core/widgets/fake_gps_dialog.dart';
-import '../../core/network/api_client.dart';
 import '../../data/services/potensi_kunjungan_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/kunjungan_provider.dart';
@@ -56,14 +55,13 @@ class _PotensiKunjunganFormViewState extends State<PotensiKunjunganFormView> {
     setState(() => _submitting = true);
     try {
       final userId = context.read<AuthProvider>().user?.id ?? '';
-      final service = PotensiKunjunganService(context.read<ApiClient>());
-      
+      final service = PotensiKunjunganService();
+
       await service.kirim(
         potensiId: widget.potensiId,
         userId: userId,
         catatan: _catatanController.text.trim(),
-        latitude: provider.lokasi!.latitude,   // Diambil langsung nilai double-nya
-        longitude: provider.lokasi!.longitude, // Diambil langsung nilai double-nya
+        lokasi: provider.lokasi!,
         foto: provider.fotoWatermark!,
       );
 
