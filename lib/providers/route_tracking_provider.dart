@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import '../core/background/background_location_handler.dart';
-import '../data/models/route_point_model.dart';
+import '../core/constants/api_constant.dart';
 import '../data/services/route_tracking_service.dart';
 
 class RouteTrackingProvider extends ChangeNotifier {
@@ -17,21 +17,25 @@ class RouteTrackingProvider extends ChangeNotifier {
     });
   }
 
-  bool _isTracking = false;
-  bool _isValidating = false;
-  bool _fakeGpsDetected = false;
-  Timer? _foregroundTimer;
+  bool _isTracking       = false;
+  bool _isValidating     = false;
+  bool _fakeGpsDetected  = false;
 
-  bool get isTracking => _isTracking;
-  bool get isValidating => _isValidating;
+  bool get isTracking      => _isTracking;
+  bool get isValidating    => _isValidating;
   bool get fakeGpsDetected => _fakeGpsDetected;
 
   Future<void> _lockAccount(String userId, double lat, double lng, String ctx) async {
     try {
       await http.post(
-        Uri.parse('https://api.isreport.my.id/absen/auto_lock_fake_gps.php'),
+        Uri.parse('${ApiConstant.baseUrl}${ApiConstant.autoLockFakeGps}'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'user_id': userId, 'latitude': lat, 'longitude': lng, 'context': ctx}),
+        body: jsonEncode({
+          'user_id': userId,
+          'latitude': lat,
+          'longitude': lng,
+          'context': ctx,
+        }),
       ).timeout(const Duration(seconds: 8));
     } catch (_) {}
   }
@@ -41,29 +45,16 @@ class RouteTrackingProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _captureAndSendForeground(String userId) async {
-    try {
-      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high, timeLimit: const Duration(seconds: 12));
-      if (pos.isMocked) {
-        _fakeGpsDetected = true;
-        notifyListeners();
-        _lockAccount(userId, pos.latitude, pos.longitude, 'route_tracking');
-        return;
-      }
-      await _service.submitPoints(userId: userId, points: [
-        RoutePointModel(latitude: pos.latitude, longitude: pos.longitude, accuracy: pos.accuracy, capturedAt: DateTime.now()),
-      ]);
-    } catch (_) {
-      // Log diam-diam tanpa mengganggu UI — tidak ditampilkan sebagai panel lagi.
-    }
-  }
-
   Future<bool> startTracking(String userId) async {
     _isValidating = true;
     notifyListeners();
 
+    // Cek fake GPS dulu sebelum jalan
     try {
-      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high, timeLimit: const Duration(seconds: 10));
+      final pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 10),
+      );
       if (pos.isMocked) {
         _isValidating = false;
         _fakeGpsDetected = true;
@@ -77,15 +68,8 @@ class RouteTrackingProvider extends ChangeNotifier {
       return false;
     }
 
-    // JALUR 1: timer di dalam app (foreground) — paling andal selama app terbuka/baru diminimize.
-    _foregroundTimer?.cancel();
-    _foregroundTimer = Timer.periodic(const Duration(seconds: 15), (_) => _captureAndSendForeground(userId));
-    await _captureAndSendForeground(userId);
-
-    // JALUR 2: background service — usaha terbaik supaya tetap jalan walau
-    // aplikasi ditutup total. Tidak dijamin 100% di semua HP (tergantung
-    // battery optimizer masing-masing merk), tapi tetap dicoba sebagai
-    // jalur cadangan di samping jalur 1.
+    // SEMUA tracking jalan di background service.
+    // Tidak ada lagi timer di provider (menghindari duplikasi data).
     await BackgroundLocationHandler.start(userId);
 
     _isTracking = true;
@@ -95,8 +79,6 @@ class RouteTrackingProvider extends ChangeNotifier {
   }
 
   Future<void> stopTracking(String userId) async {
-    _foregroundTimer?.cancel();
-    _foregroundTimer = null;
     await BackgroundLocationHandler.stop(userId);
     _isTracking = false;
     notifyListeners();
@@ -107,11 +89,8 @@ class RouteTrackingProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> uploadPendingPoints(String userId) async {}
-
   @override
   void dispose() {
-    _foregroundTimer?.cancel();
     super.dispose();
   }
 }
