@@ -1,16 +1,24 @@
 class ApiConstant {
-  static const String baseUrl = "https://api.isreport.my.id/absen";
+  ApiConstant._();
 
-  static const String login = "/login.php";
-  static const String timestamp = "/timestamp.php";
-  static const String submitKunjungan = "/rkm.php";
-  static const String promo = "/promo.php";
+  // ============ BASE URL ============
+  static const String baseUrl = 'https://api.isreport.my.id/absen';
 
-  static const String otpRequest = "/otp_request.php";
-  static const String otpVerify = "/otp_verify.php";
+  // ============ ENDPOINTS ============
+  // Route / Trail tracking
+  static const String routeTrack = '/route_tracking.php';
 
-  static const String routeTrack = "/route_tracking.php";
-  static const String liveLocations = "/get_live_locations_app.php";
+  // Live location (untuk marker di web /tracking.php)
+  static const String updateLocation = '/update_location.php';
 
-  static const Duration timeout = Duration(seconds: 15);
+  // Fake GPS report
+  static const String reportFakeGps = '/report_fake_gps.php';
+
+  // Auto lock akun fake GPS
+  static const String autoLockFakeGps = '/auto_lock_fake_gps.php';
+
+  // ============ TIMEOUT ============
+  static const Duration timeoutShort  = Duration(seconds: 8);
+  static const Duration timeoutMedium = Duration(seconds: 12);
+  static const Duration timeoutLong   = Duration(seconds: 20);
 }
