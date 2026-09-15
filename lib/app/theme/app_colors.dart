@@ -3,22 +3,27 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  static const Color primary = Color(0xFF0D47A1);
-  static const Color primaryDark = Color(0xFF08306B);
-  static const Color primaryLight = Color(0xFFEAF1FC);
-
-  static const Color action = Color(0xFF00A876);
-  static const Color actionLight = Color(0xFFE3F7EF);
-  static const Color actionText = Color(0xFF00754F);
-
-  static const Color background = Color(0xFFF4F7FA);
+  // Background
+  static const Color background = Color(0xFFFDF8F5);
   static const Color surface = Colors.white;
-  static const Color inputFill = Color(0xFFF0F3F8);
-  static const Color divider = Color(0xFFE3E8EF);
 
-  static const Color textPrimary = Color(0xFF1A2233);
-  static const Color textSecondary = Color(0xFF7C8798);
+  // Aksen Neo-Brutalism
+  static const Color primary = Color(0xFF1E40AF);   // Biru tua
+  static const Color accent = Color(0xFFFBBF24);    // Kuning cerah
+  static const Color accentAlt = Color(0xFF22D3EE); // Cyan
+  static const Color danger = Color(0xFFEF4444);    // Merah
+  static const Color success = Color(0xFF10B981);   // Hijau
 
-  static const Color error = Color(0xFFE5484D);
-  static const Color warning = Color(0xFFF5A623);
+  // Border & Text
+  static const Color border = Color(0xFF000000);    // Hitam tebal
+  static const Color textPrimary = Color(0xFF000000);
+  static const Color textSecondary = Color(0xFF6B7280);
+  static const Color textLight = Colors.white;
+
+  // Input
+  static const Color inputFill = Colors.white;
+  static const Color divider = Color(0xFFE5E7EB);
+
+  // Shadow
+  static const Color shadow = Color(0xFF000000);
 }
