@@ -11,21 +11,12 @@ const _bufferKey       = 'route_point_buffer';
 const _notifChannelId  = 'rkm_location_tracking';
 const _notifId         = 889;
 
-/// Interval utama pengiriman lokasi (detik).
-/// 30 detik = keseimbangan antara akurasi trail & hemat baterai.
-const int _intervalSeconds = 30;
-
-/// Minimal jarak (meter) untuk kirim. Kalau sales diam di 1 titik,
-/// lokasi gak dikirim terus-terusan — hemat kuota & baterai.
-const int _minDistanceMeters = 10;
-
-/// Kirim batch trail ke routeTrack kalau buffer >= 5 titik
-/// ATAU udah 2 menit dari pengiriman terakhir.
+const int _intervalSeconds     = 30;
+const int _minDistanceMeters   = 10;
 const int _bufferBatchSize     = 5;
 const int _bufferMaxAgeSeconds = 120;
 
 class BackgroundLocationHandler {
-  // ===================== INIT =====================
   static Future<void> initialize() async {
     final service = FlutterBackgroundService();
     await service.configure(
@@ -48,7 +39,6 @@ class BackgroundLocationHandler {
     );
   }
 
-  // ===================== START =====================
   static Future<void> start(String userId) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('tracking_active', true);
@@ -59,7 +49,6 @@ class BackgroundLocationHandler {
       await service.startService();
     }
 
-    // Tunggu isolate siap (maks 5 detik)
     var attempts = 0;
     while (!await service.isRunning() && attempts < 25) {
       await Future.delayed(const Duration(milliseconds: 200));
@@ -71,14 +60,12 @@ class BackgroundLocationHandler {
     service.invoke('startTracking', {'user_id': userId});
   }
 
-  // ===================== STOP =====================
   static Future<void> stop(String userId) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('tracking_active', false);
     FlutterBackgroundService().invoke('stopTracking', {'user_id': userId});
   }
 
-  // ===================== HELPERS =====================
   static Future<bool> isRunning() => FlutterBackgroundService().isRunning();
 
   static Stream<Map<String, dynamic>?> get onFakeGpsDetected =>
@@ -95,10 +82,6 @@ class BackgroundLocationHandler {
     }
   }
 }
-
-// ============================================================
-//                     BACKGROUND ISOLATE
-// ============================================================
 
 @pragma('vm:entry-point')
 Future<bool> _onIosBackground(ServiceInstance service) async {
@@ -118,7 +101,6 @@ void _onStart(ServiceInstance service) async {
   DateTime? lastSentAt;
   DateTime? lastBufferFlushAt;
 
-  // ---------- Fungsi utama: ambil lokasi & kirim ----------
   Future<void> captureOnce() async {
     try {
       final pos = await Geolocator.getCurrentPosition(
@@ -126,13 +108,10 @@ void _onStart(ServiceInstance service) async {
         timeLimit: const Duration(seconds: 12),
       );
 
-      // --- Cek Fake GPS ---
       if (pos.isMocked) {
         await _writeDebug(currentUserId, {
-          'lat': pos.latitude,
-          'lng': pos.longitude,
-          'is_mocked': true,
-          'sent_ok': false,
+          'lat': pos.latitude, 'lng': pos.longitude,
+          'is_mocked': true, 'sent_ok': false,
           'error': 'Lokasi ditandai mocked, dilewati.',
         });
 
@@ -157,12 +136,12 @@ void _onStart(ServiceInstance service) async {
         return;
       }
 
-      // --- Smart Filter: kirim kalau jarak > 10m atau udah 1 menit ---
+      // ✅ FIX: pakai `!` karena lastSentPosition udah di-cek null
       bool shouldSend = true;
       if (lastSentPosition != null && lastSentAt != null) {
         final dist = Geolocator.distanceBetween(
-          lastSentPosition.latitude,
-          lastSentPosition.longitude,
+          lastSentPosition!.latitude,
+          lastSentPosition!.longitude,
           pos.latitude,
           pos.longitude,
         );
@@ -171,7 +150,7 @@ void _onStart(ServiceInstance service) async {
       }
       if (!shouldSend) return;
 
-      // ====== STEP 1: LIVE TRACKING (update_location.php) ======
+      // STEP 1: Live tracking
       bool liveTrackingOk = false;
       try {
         final res = await http.post(
@@ -187,7 +166,7 @@ void _onStart(ServiceInstance service) async {
         liveTrackingOk = res.statusCode >= 200 && res.statusCode < 300;
       } catch (_) {}
 
-      // ====== STEP 2: BUFFER TRAIL (routeTrack) ======
+      // STEP 2: Buffer trail
       await _appendPoint(currentUserId, pos);
 
       final prefs = await SharedPreferences.getInstance();
@@ -202,19 +181,14 @@ void _onStart(ServiceInstance service) async {
         if (trailOk) lastBufferFlushAt = DateTime.now();
       }
 
-      // --- Update debug info ---
       await _writeDebug(currentUserId, {
-        'lat': pos.latitude,
-        'lng': pos.longitude,
-        'is_mocked': false,
-        'sent_ok': liveTrackingOk,
-        'live_ok': liveTrackingOk,
-        'trail_ok': trailOk,
+        'lat': pos.latitude, 'lng': pos.longitude,
+        'is_mocked': false, 'sent_ok': liveTrackingOk,
+        'live_ok': liveTrackingOk, 'trail_ok': trailOk,
         'accuracy': pos.accuracy,
         'error': liveTrackingOk ? null : 'Gagal kirim live tracking (cek internet)',
       });
 
-      // --- Update notifikasi ---
       if (service is AndroidServiceInstance) {
         final now = DateTime.now();
         final timeStr =
@@ -229,16 +203,13 @@ void _onStart(ServiceInstance service) async {
       lastSentAt = DateTime.now();
     } catch (e) {
       await _writeDebug(currentUserId, {
-        'lat': null,
-        'lng': null,
-        'is_mocked': false,
-        'sent_ok': false,
+        'lat': null, 'lng': null,
+        'is_mocked': false, 'sent_ok': false,
         'error': 'Gagal ambil lokasi: $e',
       });
     }
   }
 
-  // ---------- Listener: MULAI tracking ----------
   service.on('startTracking').listen((data) async {
     currentUserId = data?['user_id'] as String? ?? currentUserId;
     if (currentUserId.isEmpty) return;
@@ -251,7 +222,6 @@ void _onStart(ServiceInstance service) async {
     );
   });
 
-  // ---------- Listener: STOP tracking ----------
   service.on('stopTracking').listen((data) async {
     locationTimer?.cancel();
     locationTimer = null;
@@ -263,10 +233,6 @@ void _onStart(ServiceInstance service) async {
     service.stopSelf();
   });
 }
-
-// ============================================================
-//                     HELPER FUNCTIONS
-// ============================================================
 
 Future<void> _appendPoint(String userId, Position pos) async {
   final prefs = await SharedPreferences.getInstance();
@@ -299,10 +265,7 @@ Future<bool> _flushBuffer(String userId, SharedPreferences prefs) async {
         'Content-Type': 'application/json',
         if (token.isNotEmpty) 'Authorization': 'Bearer $token',
       },
-      body: jsonEncode({
-        'user_id': userId,
-        'points': points,
-      }),
+      body: jsonEncode({'user_id': userId, 'points': points}),
     ).timeout(const Duration(seconds: 12));
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
