@@ -17,65 +17,95 @@ const int _bufferBatchSize     = 5;
 const int _bufferMaxAgeSeconds = 120;
 
 class BackgroundLocationHandler {
+  static bool _initialized = false;
+
+  // ============ INIT — AMAN, GAK AUTO START ============
   static Future<void> initialize() async {
-    final service = FlutterBackgroundService();
-    await service.configure(
-      androidConfiguration: AndroidConfiguration(
-        onStart: _onStart,
-        autoStart: true,
-        isForegroundMode: true,
-        notificationChannelId: _notifChannelId,
-        initialNotificationTitle: 'RKM — Perjalanan Aktif',
-        initialNotificationContent: 'Mengirim lokasi perjalanan...',
-        foregroundServiceNotificationId: _notifId,
-        foregroundServiceTypes: [AndroidForegroundType.location],
-        autoStartOnBoot: true,
-      ),
-      iosConfiguration: IosConfiguration(
-        autoStart: true,
-        onForeground: _onStart,
-        onBackground: _onIosBackground,
-      ),
-    );
+    if (_initialized) return;
+
+    try {
+      final service = FlutterBackgroundService();
+      await service.configure(
+        androidConfiguration: AndroidConfiguration(
+          onStart: _onStart,
+          autoStart: false,            // ← JANGAN auto start (bikin crash)
+          isForegroundMode: true,
+          notificationChannelId: _notifChannelId,
+          initialNotificationTitle: 'RKM — Perjalanan Aktif',
+          initialNotificationContent: 'Mengirim lokasi perjalanan...',
+          foregroundServiceNotificationId: _notifId,
+          foregroundServiceTypes: [AndroidForegroundType.location],
+          // autoStartOnBoot DIHAPUS — bisa crash di HP tertentu
+        ),
+        iosConfiguration: IosConfiguration(
+          autoStart: false,            // ← JANGAN auto start
+          onForeground: _onStart,
+          onBackground: _onIosBackground,
+        ),
+      );
+
+      _initialized = true;
+      debugPrint('✅ BackgroundLocationHandler initialized');
+    } catch (e, st) {
+      debugPrint('❌ Init background service gagal: $e');
+      debugPrint('$st');
+    }
   }
 
   static Future<void> start(String userId) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('tracking_active', true);
-    await prefs.setString('tracking_user_id', userId);
+    try {
+      await initialize();
 
-    final service = FlutterBackgroundService();
-    if (!await service.isRunning()) {
-      await service.startService();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('tracking_active', true);
+      await prefs.setString('tracking_user_id', userId);
+
+      final service = FlutterBackgroundService();
+      if (!await service.isRunning()) {
+        await service.startService();
+      }
+
+      var attempts = 0;
+      while (!await service.isRunning() && attempts < 25) {
+        await Future.delayed(const Duration(milliseconds: 200));
+        attempts++;
+      }
+
+      service.invoke('startTracking', {'user_id': userId});
+      await Future.delayed(const Duration(milliseconds: 600));
+      service.invoke('startTracking', {'user_id': userId});
+    } catch (e, st) {
+      debugPrint('❌ Start service gagal: $e');
+      debugPrint('$st');
     }
-
-    var attempts = 0;
-    while (!await service.isRunning() && attempts < 25) {
-      await Future.delayed(const Duration(milliseconds: 200));
-      attempts++;
-    }
-
-    service.invoke('startTracking', {'user_id': userId});
-    await Future.delayed(const Duration(milliseconds: 600));
-    service.invoke('startTracking', {'user_id': userId});
   }
 
   static Future<void> stop(String userId) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('tracking_active', false);
-    FlutterBackgroundService().invoke('stopTracking', {'user_id': userId});
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('tracking_active', false);
+      FlutterBackgroundService().invoke('stopTracking', {'user_id': userId});
+    } catch (e) {
+      debugPrint('❌ Stop service gagal: $e');
+    }
   }
 
-  static Future<bool> isRunning() => FlutterBackgroundService().isRunning();
+  static Future<bool> isRunning() async {
+    try {
+      return await FlutterBackgroundService().isRunning();
+    } catch (_) {
+      return false;
+    }
+  }
 
   static Stream<Map<String, dynamic>?> get onFakeGpsDetected =>
       FlutterBackgroundService().on('fakeGpsDetected');
 
   static Future<Map<String, dynamic>?> getLastDebugStatus(String userId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString('route_debug_$userId');
-    if (raw == null) return null;
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('route_debug_$userId');
+      if (raw == null) return null;
       return jsonDecode(raw) as Map<String, dynamic>;
     } catch (_) {
       return null;
@@ -102,6 +132,8 @@ void _onStart(ServiceInstance service) async {
   DateTime? lastBufferFlushAt;
 
   Future<void> captureOnce() async {
+    if (currentUserId.isEmpty) return;
+
     try {
       final pos = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
@@ -136,7 +168,6 @@ void _onStart(ServiceInstance service) async {
         return;
       }
 
-      // ✅ FIX: pakai `!` karena lastSentPosition udah di-cek null
       bool shouldSend = true;
       if (lastSentPosition != null && lastSentAt != null) {
         final dist = Geolocator.distanceBetween(
@@ -150,7 +181,6 @@ void _onStart(ServiceInstance service) async {
       }
       if (!shouldSend) return;
 
-      // STEP 1: Live tracking
       bool liveTrackingOk = false;
       try {
         final res = await http.post(
@@ -166,7 +196,6 @@ void _onStart(ServiceInstance service) async {
         liveTrackingOk = res.statusCode >= 200 && res.statusCode < 300;
       } catch (_) {}
 
-      // STEP 2: Buffer trail
       await _appendPoint(currentUserId, pos);
 
       final prefs = await SharedPreferences.getInstance();
@@ -186,7 +215,7 @@ void _onStart(ServiceInstance service) async {
         'is_mocked': false, 'sent_ok': liveTrackingOk,
         'live_ok': liveTrackingOk, 'trail_ok': trailOk,
         'accuracy': pos.accuracy,
-        'error': liveTrackingOk ? null : 'Gagal kirim live tracking (cek internet)',
+        'error': liveTrackingOk ? null : 'Gagal kirim live tracking',
       });
 
       if (service is AndroidServiceInstance) {
@@ -225,40 +254,40 @@ void _onStart(ServiceInstance service) async {
   service.on('stopTracking').listen((data) async {
     locationTimer?.cancel();
     locationTimer = null;
-
     final userId = data?['user_id'] as String? ?? currentUserId;
     final prefs = await SharedPreferences.getInstance();
     await _flushBuffer(userId, prefs);
-
     service.stopSelf();
   });
 }
 
 Future<void> _appendPoint(String userId, Position pos) async {
-  final prefs = await SharedPreferences.getInstance();
-  final key = '${_bufferKey}_$userId';
-  final buffer = prefs.getStringList(key) ?? [];
-  buffer.add(jsonEncode({
-    'lat': pos.latitude,
-    'lng': pos.longitude,
-    'acc': pos.accuracy,
-    'ts': DateTime.now().toIso8601String(),
-  }));
-  if (buffer.length > 500) buffer.removeRange(0, buffer.length - 500);
-  await prefs.setStringList(key, buffer);
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final key = '${_bufferKey}_$userId';
+    final buffer = prefs.getStringList(key) ?? [];
+    buffer.add(jsonEncode({
+      'lat': pos.latitude,
+      'lng': pos.longitude,
+      'acc': pos.accuracy,
+      'ts': DateTime.now().toIso8601String(),
+    }));
+    if (buffer.length > 500) buffer.removeRange(0, buffer.length - 500);
+    await prefs.setStringList(key, buffer);
+  } catch (_) {}
 }
 
 Future<bool> _flushBuffer(String userId, SharedPreferences prefs) async {
-  final key = '${_bufferKey}_$userId';
-  final buffer = prefs.getStringList(key) ?? [];
-  if (buffer.isEmpty) return true;
-
-  final token = prefs.getString('token') ?? '';
-  final points = buffer
-      .map((e) => jsonDecode(e) as Map<String, dynamic>)
-      .toList();
-
   try {
+    final key = '${_bufferKey}_$userId';
+    final buffer = prefs.getStringList(key) ?? [];
+    if (buffer.isEmpty) return true;
+
+    final token = prefs.getString('token') ?? '';
+    final points = buffer
+        .map((e) => jsonDecode(e) as Map<String, dynamic>)
+        .toList();
+
     final response = await http.post(
       Uri.parse('${ApiConstant.baseUrl}${ApiConstant.routeTrack}'),
       headers: {
@@ -280,7 +309,9 @@ Future<bool> _flushBuffer(String userId, SharedPreferences prefs) async {
 
 Future<void> _writeDebug(String userId, Map<String, dynamic> data) async {
   if (userId.isEmpty) return;
-  final prefs = await SharedPreferences.getInstance();
-  data['written_at'] = DateTime.now().toIso8601String();
-  await prefs.setString('route_debug_$userId', jsonEncode(data));
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    data['written_at'] = DateTime.now().toIso8601String();
+    await prefs.setString('route_debug_$userId', jsonEncode(data));
+  } catch (_) {}
 }
