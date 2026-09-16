@@ -23,11 +23,10 @@ class RouteTrackingProvider extends ChangeNotifier {
   bool get isValidating    => _isValidating;
   bool get fakeGpsDetected => _fakeGpsDetected;
 
-  // ✅ Panggil SEKALI dari _StartupGate — jangan di constructor
+  /// Panggil manual — jangan di constructor
   void initListeners() {
     if (_listenersInitialized) return;
     _listenersInitialized = true;
-
     try {
       _fakeGpsSub = BackgroundLocationHandler.onFakeGpsDetected.listen((event) {
         _fakeGpsDetected = true;
@@ -35,6 +34,15 @@ class RouteTrackingProvider extends ChangeNotifier {
       });
     } catch (e) {
       debugPrint('⚠️ Fake GPS listener gagal: $e');
+    }
+  }
+
+  Future<void> checkInitialState() async {
+    try {
+      _isTracking = await BackgroundLocationHandler.isRunning();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('⚠️ checkInitialState gagal: $e');
     }
   }
 
@@ -51,15 +59,6 @@ class RouteTrackingProvider extends ChangeNotifier {
         }),
       ).timeout(const Duration(seconds: 8));
     } catch (_) {}
-  }
-
-  Future<void> checkInitialState() async {
-    try {
-      _isTracking = await BackgroundLocationHandler.isRunning();
-      notifyListeners();
-    } catch (e) {
-      debugPrint('⚠️ checkInitialState gagal: $e');
-    }
   }
 
   Future<bool> startTracking(String userId) async {
@@ -84,7 +83,12 @@ class RouteTrackingProvider extends ChangeNotifier {
       return false;
     }
 
+    // ✅ INIT DI SINI (lazy) — bukan di main.dart
+    await BackgroundLocationHandler.initialize();
     await BackgroundLocationHandler.start(userId);
+
+    // ✅ Baru listen setelah service jalan
+    initListeners();
 
     _isTracking = true;
     _isValidating = false;
