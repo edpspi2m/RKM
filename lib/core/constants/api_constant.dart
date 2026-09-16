@@ -27,7 +27,7 @@ class ApiConstant {
   static const String reportFakeGps   = '/report_fake_gps.php';
   static const String autoLockFakeGps = '/auto_lock_fake_gps.php';
 
-  // ============ TIMEOUT LAIN (kalau dipakai) ============
+  // ============ TIMEOUT LAIN ============
   static const Duration timeoutShort  = Duration(seconds: 8);
   static const Duration timeoutMedium = Duration(seconds: 12);
   static const Duration timeoutLong   = Duration(seconds: 20);
