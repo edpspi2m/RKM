@@ -10,12 +10,10 @@ import '../data/services/route_tracking_service.dart';
 class RouteTrackingProvider extends ChangeNotifier {
   final RouteTrackingService _service;
 
-  RouteTrackingProvider(this._service) {
-    BackgroundLocationHandler.onFakeGpsDetected.listen((event) {
-      _fakeGpsDetected = true;
-      notifyListeners();
-    });
-  }
+  RouteTrackingProvider(this._service);
+
+  StreamSubscription? _fakeGpsSub;
+  bool _listenersInitialized = false;
 
   bool _isTracking       = false;
   bool _isValidating     = false;
@@ -24,6 +22,21 @@ class RouteTrackingProvider extends ChangeNotifier {
   bool get isTracking      => _isTracking;
   bool get isValidating    => _isValidating;
   bool get fakeGpsDetected => _fakeGpsDetected;
+
+  // ✅ Panggil SEKALI dari _StartupGate — jangan di constructor
+  void initListeners() {
+    if (_listenersInitialized) return;
+    _listenersInitialized = true;
+
+    try {
+      _fakeGpsSub = BackgroundLocationHandler.onFakeGpsDetected.listen((event) {
+        _fakeGpsDetected = true;
+        notifyListeners();
+      });
+    } catch (e) {
+      debugPrint('⚠️ Fake GPS listener gagal: $e');
+    }
+  }
 
   Future<void> _lockAccount(String userId, double lat, double lng, String ctx) async {
     try {
@@ -41,15 +54,18 @@ class RouteTrackingProvider extends ChangeNotifier {
   }
 
   Future<void> checkInitialState() async {
-    _isTracking = await BackgroundLocationHandler.isRunning();
-    notifyListeners();
+    try {
+      _isTracking = await BackgroundLocationHandler.isRunning();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('⚠️ checkInitialState gagal: $e');
+    }
   }
 
   Future<bool> startTracking(String userId) async {
     _isValidating = true;
     notifyListeners();
 
-    // Cek fake GPS dulu sebelum jalan
     try {
       final pos = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
@@ -68,8 +84,6 @@ class RouteTrackingProvider extends ChangeNotifier {
       return false;
     }
 
-    // SEMUA tracking jalan di background service.
-    // Tidak ada lagi timer di provider (menghindari duplikasi data).
     await BackgroundLocationHandler.start(userId);
 
     _isTracking = true;
@@ -91,6 +105,7 @@ class RouteTrackingProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _fakeGpsSub?.cancel();
     super.dispose();
   }
 }
