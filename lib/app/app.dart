@@ -63,7 +63,6 @@ class RkmApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => RiwayatProvider(riwayatService)),
         ChangeNotifierProvider(create: (_) => LocationShareProvider(locationShareService)),
         ChangeNotifierProvider(create: (_) => OtpProvider(otpService)),
-        // RouteTrackingProvider — listen fake GPS dipanggil di _StartupGate
         ChangeNotifierProvider(create: (_) => RouteTrackingProvider(routeTrackingService)),
         ChangeNotifierProvider(create: (_) => IzinStatusProvider(izinSakitService)),
       ],
@@ -77,28 +76,8 @@ class RkmApp extends StatelessWidget {
   }
 }
 
-class _StartupGate extends StatefulWidget {
+class _StartupGate extends StatelessWidget {
   const _StartupGate();
-
-  @override
-  State<_StartupGate> createState() => _StartupGateState();
-}
-
-class _StartupGateState extends State<_StartupGate> {
-  @override
-  void initState() {
-    super.initState();
-    // ✅ Panggil initListeners setelah frame pertama — service udah ready
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      try {
-        context.read<RouteTrackingProvider>().initListeners();
-        context.read<RouteTrackingProvider>().checkInitialState();
-      } catch (e) {
-        debugPrint('⚠️ Init route tracking gagal: $e');
-      }
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
