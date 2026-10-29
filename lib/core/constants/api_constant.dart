@@ -2,7 +2,7 @@ class ApiConstant {
   ApiConstant._();
 
   // ============ BASE URL ============
-  static const String baseUrl = 'https://api.isreport.my.id/absen';
+  static const String baseUrl = 'https://api.spi2m.web.id/absen';
 
   // ============ TIMEOUT ============
   static const Duration timeout = Duration(seconds: 15);
